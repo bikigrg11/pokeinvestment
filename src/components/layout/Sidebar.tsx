@@ -33,7 +33,7 @@ export function Sidebar() {
           <span className="text-slate-950 font-bold text-xs">P</span>
         </div>
         <span className="hidden lg:block text-sm font-semibold text-slate-100 tracking-wide">
-          PokeInvest
+          PokeInvestment
         </span>
       </div>
 

@@ -34,7 +34,7 @@ export default function LoginPage() {
         <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-amber-400 mb-4">
           <span className="text-slate-950 font-bold">P</span>
         </div>
-        <h1 className="text-xl font-bold text-slate-100">Sign in to PokeInvest</h1>
+        <h1 className="text-xl font-bold text-slate-100">Sign in to PokeInvestment</h1>
         <p className="text-sm text-slate-500 mt-1">Bloomberg Terminal for Pokémon TCG</p>
       </div>
 

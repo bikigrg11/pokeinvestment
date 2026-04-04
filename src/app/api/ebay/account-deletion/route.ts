@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as unknown;
-    // PokeInvest does not store eBay user data, so there is nothing to delete.
+    // PokeInvestment does not store eBay user data, so there is nothing to delete.
     // Log the notification for audit purposes and return 200.
     console.log("[eBay] Account deletion notification received:", JSON.stringify(body));
     return NextResponse.json({ status: "acknowledged" });

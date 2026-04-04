@@ -3,7 +3,7 @@ import "./globals.css";
 import { TRPCProvider } from "@/components/providers/TRPCProvider";
 
 export const metadata: Metadata = {
-  title: "PokeInvest — Pokémon TCG Investment Analytics",
+  title: "PokeInvestment — Pokémon TCG Investment Analytics",
   description: "Bloomberg Terminal for Pokémon TCG cards. Track prices, analyze investments, manage portfolios.",
 };
 

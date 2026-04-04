@@ -75,7 +75,7 @@ export function TopNav() {
               letterSpacing: "-0.5px",
             }}
           >
-            Poké<span style={{ color: "#fbbf24" }}>Invest</span>
+            Poké<span style={{ color: "#fbbf24" }}>Investment</span>
           </span>
           <span
             className="hide-mobile"
