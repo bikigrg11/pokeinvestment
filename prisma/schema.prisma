@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  portfolios    Portfolio[]
+  alerts        PriceAlert[]
+  sessions      Session[]
+  accounts      Account[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Card {
+  id            String    @id
+  name          String
+  pokemon       String
+  setId         String
+  set           Set       @relation(fields: [setId], references: [id])
+  rarity        String?
+  cardNumber    String
+  supertype     String
+  subtypes      String[]
+  types         String[]
+  hp            String?
+  artist        String?
+  imageSmall    String?
+  imageLarge    String?
+  tcgplayerUrl  String?
+  cardmarketUrl String?
+  releaseDate   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  prices        CardPrice[]
+  holdings      PortfolioHolding[]
+  alerts        PriceAlert[]
+
+  @@index([pokemon])
+  @@index([setId])
+  @@index([rarity])
+}
+
+model CardPrice {
+  id            String    @id @default(cuid())
+  cardId        String
+  card          Card      @relation(fields: [cardId], references: [id])
+  date          DateTime  @default(now())
+  marketPrice   Int?
+  lowPrice      Int?
+  midPrice      Int?
+  highPrice     Int?
+  variant       String
+  psa10Price    Int?
+  psa9Price     Int?
+  rawPrice      Int?
+  volume        Int?
+
+  @@index([cardId, date])
+  @@index([date])
+  @@unique([cardId, date, variant])
+}
+
+model Set {
+  id              String    @id
+  name            String
+  series          String
+  releaseDate     DateTime?
+  totalCards      Int
+  printedTotal    Int
+  symbolUrl       String?
+  logoUrl         String?
+  legalities      Json?
+  createdAt       DateTime  @default(now())
+  cards           Card[]
+  sealedProducts  SealedProduct[]
+
+  @@index([series])
+}
+
+model SealedProduct {
+  id            String    @id @default(cuid())
+  name          String
+  setId         String
+  set           Set       @relation(fields: [setId], references: [id])
+  type          String
+  releasePriceC Int?
+  currentPriceC Int?
+  imageUrl      String?
+  lastUpdated   DateTime?
+
+  @@index([setId])
+}
+
+model Portfolio {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  name      String    @default("My Portfolio")
+  createdAt DateTime  @default(now())
+  holdings  PortfolioHolding[]
+
+  @@index([userId])
+}
+
+model PortfolioHolding {
+  id             String    @id @default(cuid())
+  portfolioId    String
+  portfolio      Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  cardId         String
+  card           Card      @relation(fields: [cardId], references: [id])
+  purchasePriceC Int
+  quantity       Int
+  condition      String    @default("NM")
+  graded         Boolean   @default(false)
+  gradeCompany   String?
+  gradeValue     String?
+  purchaseDate   DateTime
+  notes          String?
+  createdAt      DateTime  @default(now())
+
+  @@index([portfolioId])
+  @@index([cardId])
+}
+
+model PriceAlert {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  cardId       String
+  card         Card      @relation(fields: [cardId], references: [id])
+  targetPriceC Int
+  direction    String
+  active       Boolean   @default(true)
+  triggeredAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, active])
+  @@index([cardId])
+}
+
+model IndexSnapshot {
+  id             String   @id @default(cuid())
+  date           DateTime @unique
+  value          Float
+  components     Json
+  totalMarketCap Float
+
+  @@index([date])
+}
