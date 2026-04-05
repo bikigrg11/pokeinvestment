@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { trpc as api } from "@/lib/trpc/client";
@@ -30,6 +30,15 @@ const SELECT_STYLE: React.CSSProperties = {
   outline: "none",
 };
 
+// Module-level cache — survives React re-mounts and page navigations
+// so navigating back to /cards restores the previous filter state instantly.
+const _filterCache = {
+  search: "",
+  filterSet: "",
+  filterRarity: "",
+  filterSignal: "",
+};
+
 function TableSkeleton() {
   return (
     <div style={{ border: "1px solid #1e293b", borderRadius: 8, overflow: "hidden" }}>
@@ -57,13 +66,28 @@ function TableSkeleton() {
 
 export default function CardsPage() {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [filterSet, setFilterSet] = useState("");
-  const [filterRarity, setFilterRarity] = useState("");
-  const [filterSignal, setFilterSignal] = useState("");
+
+  // Initialise from cache so state is restored instantly on back-navigation
+  const [search, setSearch] = useState(_filterCache.search);
+  const [filterSet, setFilterSet] = useState(_filterCache.filterSet);
+  const [filterRarity, setFilterRarity] = useState(_filterCache.filterRarity);
+  const [filterSignal, setFilterSignal] = useState(_filterCache.filterSignal);
+
+  // Debounced search — only fires the tRPC query 300ms after the user stops typing
+  const [debouncedSearch, setDebouncedSearch] = useState(_filterCache.search);
+  useEffect(() => {
+    _filterCache.search = search;
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Keep remaining filter values synced to cache
+  useEffect(() => { _filterCache.filterSet = filterSet; }, [filterSet]);
+  useEffect(() => { _filterCache.filterRarity = filterRarity; }, [filterRarity]);
+  useEffect(() => { _filterCache.filterSignal = filterSignal; }, [filterSignal]);
 
   const { data, isLoading, isError, refetch } = api.cards.list.useQuery({
-    q: search || undefined,
+    q: debouncedSearch || undefined,
     setId: filterSet || undefined,
     rarity: filterRarity || undefined,
     limit: 200,
@@ -74,7 +98,6 @@ export default function CardsPage() {
   const cards = useMemo(() => {
     const raw = data?.cards ?? [];
     if (!filterSignal) return raw;
-    // Signal filtering requires metrics computation on the server — skip for now
     return raw;
   }, [data, filterSignal]);
 

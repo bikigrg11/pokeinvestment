@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 const SIGNAL_COLORS: Record<string, string> = {
   Undervalued: "#22d3ee",
   Momentum: "#f59e0b",
@@ -13,7 +15,7 @@ interface SignalBadgeProps {
   signal: string;
 }
 
-export function SignalBadge({ signal }: SignalBadgeProps) {
+export const SignalBadge = memo(function SignalBadge({ signal }: SignalBadgeProps) {
   const color = SIGNAL_COLORS[signal] ?? "#64748b";
   const label = signal.replace(/([A-Z])/g, " $1").trim(); // "GradingCandidate" → "Grading Candidate"
 
@@ -36,4 +38,4 @@ export function SignalBadge({ signal }: SignalBadgeProps) {
       {label}
     </span>
   );
-}
+});

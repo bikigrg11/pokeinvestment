@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 
 interface MiniSparklineProps {
@@ -9,7 +10,7 @@ interface MiniSparklineProps {
   width?: number | string;
 }
 
-export function MiniSparkline({
+export const MiniSparkline = memo(function MiniSparkline({
   data,
   color = "#22c55e",
   height = 40,
@@ -42,4 +43,4 @@ export function MiniSparkline({
       </AreaChart>
     </ResponsiveContainer>
   );
-}
+});

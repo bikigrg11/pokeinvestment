@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 
 export interface Column<T> {
   key: keyof T | string;
@@ -21,7 +21,7 @@ interface SortableTableProps<T extends Record<string, unknown>> {
   emptyMessage?: string;
 }
 
-export function SortableTable<T extends Record<string, unknown>>({
+function SortableTableInner<T extends Record<string, unknown>>({
   columns,
   data,
   onRowClick,
@@ -158,3 +158,6 @@ export function SortableTable<T extends Record<string, unknown>>({
     </div>
   );
 }
+
+// Cast preserves the generic type parameter through memo
+export const SortableTable = memo(SortableTableInner) as typeof SortableTableInner;

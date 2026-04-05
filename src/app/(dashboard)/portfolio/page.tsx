@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, Fragment, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
 import Image from "next/image";
@@ -90,9 +90,16 @@ function AddCardPanel({ onClose }: { onClose: () => void }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [mutError, setMutError] = useState<string | null>(null);
 
+  // Debounce the search — cancel in-flight requests from previous keystrokes
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
   const { data: searchResults } = trpc.cards.search.useQuery(
-    { q: query, limit: 8 },
-    { enabled: query.length > 1 }
+    { q: debouncedQuery, limit: 8 },
+    { enabled: debouncedQuery.length > 1 }
   );
 
   const addMutation = trpc.portfolio.addHolding.useMutation({
