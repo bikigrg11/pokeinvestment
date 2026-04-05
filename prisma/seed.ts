@@ -24,65 +24,8 @@ import {
 
 const db = new PrismaClient();
 
-// ─── Priority sets ────────────────────────────────────────────────────────────
-// Vintage + high-investment-value modern sets. Mapped from pokemontcg.io set IDs.
-// Full list: https://pokemontcg.io/v2/sets
-
-const PRIORITY_SET_IDS = new Set([
-  // Base Era
-  "base1",   // Base Set
-  "base2",   // Jungle
-  "base3",   // Fossil
-  "base4",   // Team Rocket
-  "base5",   // Base Set 2
-  "base6",   // Legendary Collection
-  // Gym
-  "gym1",    // Gym Heroes
-  "gym2",    // Gym Challenge
-  // Neo
-  "neo1",    // Neo Genesis
-  "neo2",    // Neo Discovery
-  "neo3",    // Neo Revelation
-  "neo4",    // Neo Destiny
-  // e-Series
-  "ecard1",  // Expedition
-  "ecard2",  // Aquapolis
-  "ecard3",  // Skyridge
-  // EX Era
-  "ex1",     // EX Ruby & Sapphire
-  "ex3",     // EX Dragon
-  "ex6",     // EX FireRed & LeafGreen
-  "ex16",    // EX Power Keepers
-  // DP/Platinum
-  "dp1",     // Diamond & Pearl
-  "pl4",     // Arceus
-  // HGSS
-  "hgss1",   // HeartGold SoulSilver
-  "hgss4",   // Triumphant
-  // BW
-  "bw1",     // Black & White
-  "bw11",    // Legendary Treasures
-  // XY
-  "xy1",     // XY Base
-  "xy12",    // XY Evolutions
-  // SM
-  "sm1",     // Sun & Moon Base
-  "sm115",   // Hidden Fates
-  "sma",     // SM Black Star Promos
-  // SWSH
-  "swsh1",   // Sword & Shield Base
-  "swsh35",  // Champion's Path
-  "swsh7",   // Evolving Skies
-  "swsh12",  // Silver Tempest
-  "swsh12pt5", // Crown Zenith
-  // SV
-  "sv1",     // Scarlet & Violet Base
-  "sv3",     // Obsidian Flames
-  "sv3pt5",  // 151
-  "sv4",     // Paradox Rift
-  "sv8",     // Surging Sparks
-  "sv8pt5",  // Prismatic Evolutions
-]);
+// All sets are seeded — no priority filter.
+// pokemontcg.io free API key: 20,000 req/day. Full seed uses ~300–500 requests.
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -238,11 +181,9 @@ async function main() {
     setDateMap.set(set.id, parseTCGDate(set.releaseDate));
   }
 
-  // ── Step 2: Fetch cards for priority sets ──────────────────────────────────
-  const prioritySets = allSets.filter((s) => PRIORITY_SET_IDS.has(s.id));
-  console.log(
-    `🃏 Fetching cards for ${prioritySets.length} priority sets (out of ${allSets.length} total)...`
-  );
+  // ── Step 2: Fetch cards for all sets ───────────────────────────────────────
+  const prioritySets = allSets;
+  console.log(`🃏 Fetching cards for all ${prioritySets.length} sets...`);
 
   let totalCards = 0;
   let totalPrices = 0;
@@ -253,7 +194,7 @@ async function main() {
 
     let cards: TCGCard[];
     try {
-      cards = await fetchAllCardsInSet(set.id, 150);
+      cards = await fetchAllCardsInSet(set.id);
     } catch (err) {
       console.error(`FAILED: ${err}`);
       continue;

@@ -118,7 +118,7 @@ export const cardsRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const cutoff = new Date();
-      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      cutoff.setFullYear(cutoff.getFullYear() - 2); // 2 years matches seed-history depth
 
       const card = await ctx.db.card.findUnique({
         where: { id: input.id },
