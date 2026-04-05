@@ -173,8 +173,15 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
   const volatility = periodReturns.length >= 4 ? Math.sqrt(variance * 52) * 100 : null;
 
   const marketPrice = activeVariantData?.marketPrice ?? null;
-  const rawPrice = activeVariantData?.rawPrice ?? marketPrice;
+  const ebayRawPrice = activeVariantData?.rawPrice ?? null;
+  // Use eBay raw price as the reference for grading calculations.
+  // Fall back to TCGPlayer market price only when eBay data is absent.
+  const rawPrice = ebayRawPrice ?? marketPrice;
   const volume = activeVariantData?.volume ?? null;
+
+  // Flag when TCGPlayer price is >5x the eBay price — likely stale listing.
+  const priceIsSuspicious =
+    ebayRawPrice != null && marketPrice != null && marketPrice > ebayRawPrice * 5 && ebayRawPrice > 200;
 
   // Sanity-check PSA10: graded cards should be worth MORE than raw.
   // If eBay returned a PSA10 price below the raw/market price, the data is bad — hide it.
@@ -280,9 +287,14 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: marketPrice != null ? "#e2e8f0" : "#475569", fontFamily: "'JetBrains Mono', monospace" }}>
+          <div style={{ fontSize: 32, fontWeight: 700, color: marketPrice != null ? (priceIsSuspicious ? "#f59e0b" : "#e2e8f0") : "#475569", fontFamily: "'JetBrains Mono', monospace" }}>
             {marketPrice != null ? formatCents(marketPrice) : "No price data"}
           </div>
+          {priceIsSuspicious && ebayRawPrice != null && (
+            <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
+              eBay: <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{formatCents(ebayRawPrice)}</span>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 4 }}>
             <span style={{ color: clr(rangeReturn), fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>
               {range} {rangeReturn >= 0 ? "+" : ""}{rangeReturn.toFixed(2)}%
@@ -290,6 +302,16 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       </div>
+
+      {/* Stale price warning */}
+      {priceIsSuspicious && ebayRawPrice != null && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#f59e0b12", border: "1px solid #f59e0b30", borderRadius: 8, marginBottom: 20, fontSize: 13, color: "#94a3b8" }}>
+          <span style={{ color: "#f59e0b", fontWeight: 700, fontSize: 15 }}>⚠</span>
+          <span>
+            TCGPlayer price <strong style={{ color: "#f1f5f9" }}>{formatCents(marketPrice)}</strong> is significantly higher than recent eBay sales <strong style={{ color: "#f1f5f9" }}>{formatCents(ebayRawPrice)}</strong>. The TCGPlayer listing may be stale or from a premium seller. eBay price is used for grading calculations.
+          </span>
+        </div>
+      )}
 
       {/* Metric grid */}
       <div className="grid-4col" style={{ marginBottom: 20 }}>
