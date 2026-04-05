@@ -52,7 +52,9 @@
       "Bash(curl -s \"http://localhost:3001/api/trpc/analytics.dashboard\")",
       "Bash(curl:*)",
       "Bash(export PATH=\"/usr/local/opt/postgresql@16/bin:$PATH\")",
-      "Bash(psql -U bikigurung -d pokeinvest -c ':*)"
+      "Bash(psql -U bikigurung -d pokeinvest -c ':*)",
+      "Bash(git remote:*)",
+      "Bash(git push:*)"
     ]
   }
 }

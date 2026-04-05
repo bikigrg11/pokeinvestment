@@ -213,8 +213,8 @@ export default function DashboardPage() {
 
   const topByPrice = (data?.topByPrice ?? []) as CardRow[];
   const topByVolume = (data?.topByVolume ?? []) as CardRow[];
-  const vintageHolos = (data?.vintageHolos ?? []) as CardRow[];
-  const topGrading = (data?.topGrading ?? []) as CardRow[];
+  const topGradingVintage = (data?.topGradingVintage ?? []) as CardRow[];
+  const topGradingModern = (data?.topGradingModern ?? []) as CardRow[];
 
   return (
     <div>
@@ -322,19 +322,23 @@ export default function DashboardPage() {
           onCardClick={(id) => router.push(`/cards/${id}`)}
         />
         <LeaderboardPanel
-          title="Vintage Holos (pre-2005)"
+          title="Vintage Grading Upside (pre-2003)"
           icon={Award}
           iconColor="#a78bfa"
-          data={vintageHolos}
-          valueFormatter={(r) => formatCents(r.marketPrice)}
+          data={topGradingVintage}
+          valueFormatter={(r) => r.psa10Price != null && r.marketPrice != null && r.marketPrice > 0
+            ? `${(r.psa10Price / r.marketPrice).toFixed(1)}×`
+            : "—"}
           onCardClick={(id) => router.push(`/cards/${id}`)}
         />
         <LeaderboardPanel
-          title="Top Grading Upside"
+          title="Modern Grading Upside (2003+)"
           icon={Award}
           iconColor="#fbbf24"
-          data={topGrading}
-          valueFormatter={(r) => (r.psa10Price != null ? formatCents(r.psa10Price) : "—")}
+          data={topGradingModern}
+          valueFormatter={(r) => r.psa10Price != null && r.marketPrice != null && r.marketPrice > 0
+            ? `${(r.psa10Price / r.marketPrice).toFixed(1)}×`
+            : "—"}
           onCardClick={(id) => router.push(`/cards/${id}`)}
         />
       </div>

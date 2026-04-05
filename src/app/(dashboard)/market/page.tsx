@@ -344,7 +344,7 @@ export default function MarketPage() {
                   },
                 },
               ]}
-              data={(dashboard?.topGrading ?? []) as unknown as Record<string, unknown>[]}
+              data={(dashboard?.topGradingVintage ?? dashboard?.topGradingModern ?? []) as unknown as Record<string, unknown>[]}
               maxHeight={240}
             />
           )}

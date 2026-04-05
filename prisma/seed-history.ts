@@ -18,7 +18,7 @@ const db = new PrismaClient({ log: [] });
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const WEEKS = 104;           // 2 years of weekly snapshots
+const WEEKS = 52;            // 1 year of weekly snapshots (fits Neon 512 MB free tier)
 const BATCH = 200;           // upsert batch size per flush
 
 // Volatility and drift per rarity tier (weekly %)

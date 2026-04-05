@@ -58,7 +58,7 @@ export const analyticsRouter = createTRPCRouter({
       JOIN "Set"  s ON s.id = c."setId"
     `;
 
-    const [topByPrice, topByVolume, topGrading, vintageHolos, seriesPerf, statsRows] =
+    const [topByPrice, topByVolume, topGradingVintage, topGradingModern, vintageHolos, seriesPerf, statsRows] =
       await Promise.all([
         // Top 5 by market price
         ctx.db.$queryRawUnsafe<CardRow[]>(
@@ -68,10 +68,18 @@ export const analyticsRouter = createTRPCRouter({
         ctx.db.$queryRawUnsafe<CardRow[]>(
           `${base} AND l.volume IS NOT NULL ORDER BY l.volume DESC LIMIT 5`
         ),
-        // Top 5 grading upside (psa10/raw ratio, minimum raw $5)
+        // Top 5 vintage grading upside (pre-2003, psa10/raw ratio)
         ctx.db.$queryRawUnsafe<CardRow[]>(
           `${base}
            AND l."psa10Price" IS NOT NULL AND l."rawPrice" > 500
+           AND s."releaseDate" < '2003-01-01'
+           ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 5`
+        ),
+        // Top 5 modern grading upside (2003+, psa10/raw ratio)
+        ctx.db.$queryRawUnsafe<CardRow[]>(
+          `${base}
+           AND l."psa10Price" IS NOT NULL AND l."rawPrice" > 500
+           AND s."releaseDate" >= '2003-01-01'
            ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 5`
         ),
         // Top 5 vintage holos (pre-2005, rarity contains "Holo" or "Rare")
@@ -122,7 +130,8 @@ export const analyticsRouter = createTRPCRouter({
     return {
       topByPrice,
       topByVolume,
-      topGrading,
+      topGradingVintage,
+      topGradingModern,
       vintageHolos,
       seriesPerformance: seriesPerf.map((r) => ({
         series: r.series,
@@ -140,6 +149,68 @@ export const analyticsRouter = createTRPCRouter({
 
   indexHistory: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.indexSnapshot.findMany({ orderBy: { date: "asc" }, take: 365 });
+  }),
+
+  /** Top 100 grading upside candidates, split by era. */
+  gradingLeaderboard: publicProcedure.query(async ({ ctx }) => {
+    type GradingRow = {
+      id: string;
+      name: string;
+      rarity: string | null;
+      imageSmall: string | null;
+      setName: string;
+      series: string;
+      releaseDate: Date | null;
+      marketPrice: number | null;
+      rawPrice: number | null;
+      psa10Price: number | null;
+      volume: number | null;
+    };
+
+    const base = `
+      WITH latest AS (
+        SELECT DISTINCT ON ("cardId")
+          "cardId", "marketPrice", volume, "psa10Price", "rawPrice"
+        FROM "CardPrice"
+        WHERE "marketPrice" IS NOT NULL
+          AND "psa10Price" IS NOT NULL
+          AND "rawPrice" > 500
+        ORDER BY "cardId", date DESC
+      )
+      SELECT
+        c.id, c.name, c.rarity, c."imageSmall",
+        s.name        AS "setName",
+        s.series,
+        s."releaseDate",
+        l."marketPrice",
+        l."rawPrice",
+        l."psa10Price",
+        l.volume
+      FROM latest l
+      JOIN "Card" c ON c.id = l."cardId"
+      JOIN "Set"  s ON s.id = c."setId"
+    `;
+
+    const [vintage, modern] = await Promise.all([
+      ctx.db.$queryRawUnsafe<GradingRow[]>(
+        `${base} AND s."releaseDate" < '2003-01-01'
+         ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 100`
+      ),
+      ctx.db.$queryRawUnsafe<GradingRow[]>(
+        `${base} AND s."releaseDate" >= '2003-01-01'
+         ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 100`
+      ),
+    ]);
+
+    const enrich = (rows: GradingRow[]) =>
+      rows.map((r) => ({
+        ...r,
+        gradingUpside: r.psa10Price != null && r.rawPrice != null && r.rawPrice > 0
+          ? +(r.psa10Price / r.rawPrice).toFixed(2)
+          : null,
+      }));
+
+    return { vintage: enrich(vintage), modern: enrich(modern) };
   }),
 
   /**

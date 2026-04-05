@@ -10,6 +10,7 @@ import {
   Package,
   Briefcase,
   BarChart3,
+  Award,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { href: "/sealed", label: "Sealed", icon: Package },
   { href: "/portfolio", label: "Portfolio", icon: Briefcase },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/grading", label: "Grading", icon: Award },
 ];
 
 export function TopNav() {
