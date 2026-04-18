@@ -93,20 +93,25 @@ function enrichCard(c: CardRow): EnrichedCard {
   };
 }
 
-// ─── Static market pulse ────────────────────────────────────────────
-
-const MARKET_PULSE = [
-  { t: "2h", tag: "BREAKOUT", text: "Alt art modern holos showing 14% volume spike across major sets" },
-  { t: "5h", tag: "GRADING", text: "PSA announces faster turnaround — expect PSA 10 population spike" },
-  { t: "1d", tag: "VOLUME", text: "151 sealed UPC volume up 3.2× after Japan restock confirmation" },
-  { t: "2d", tag: "CATALYST", text: "Base Set PSA 10 pop drops below 200 after reholder rejects" },
-  { t: "3d", tag: "INDEX", text: "Pokémon 250 crosses all-time high, led by Evolving Skies alt arts" },
-];
-
 function pulseTagColor(tag: string): string {
   if (tag === "BREAKOUT") return "var(--pos)";
-  if (tag === "CATALYST") return "var(--accent)";
+  if (tag === "PRICE") return "var(--pos)";
+  if (tag === "DIP") return "var(--neg)";
+  if (tag === "GRADING") return "var(--accent)";
   return "var(--neu)";
+}
+
+/** Format a date into a relative time string like "2h ago" or "3d ago" */
+function timeAgo(date: Date | string): string {
+  const now = Date.now();
+  const then = new Date(date).getTime();
+  const diffMs = now - then;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 60) return `${Math.max(1, mins)}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d`;
 }
 
 // ─── Chart tooltip ──────────────────────────────────────────────────
@@ -273,7 +278,7 @@ export default function DashboardPage() {
                 ● Today&apos;s Top Buy Signal
               </span>
               <span style={{ fontSize: 10, color: "var(--text-3)", letterSpacing: "0.8px" }}>
-                Updated 4 min ago
+                Updated {data?.lastUpdated ? timeAgo(data.lastUpdated as unknown as string) : "—"} ago
               </span>
             </div>
             <h2
@@ -362,7 +367,12 @@ export default function DashboardPage() {
           sub={indexChange != null ? `${indexChange >= 0 ? "+" : ""}${indexChange.toFixed(2)}% today` : undefined}
           color={indexChange != null ? clr(indexChange) : undefined}
         />
-        <Stat label="Market Sentiment" value="Bullish" sub="72% of tracked up 7d" color="var(--pos)" />
+        <Stat
+          label="Market Sentiment"
+          value={data?.sentiment?.label ?? "—"}
+          sub={`${data?.sentiment?.pct ?? 0}% of tracked up 2w`}
+          color={data?.sentiment?.label === "Bullish" ? "var(--pos)" : data?.sentiment?.label === "Bearish" ? "var(--neg)" : "var(--text-2)"}
+        />
         <Stat
           label="Total Market Cap"
           value={
@@ -373,8 +383,8 @@ export default function DashboardPage() {
           sub={`${stats?.trackedCards ?? 0} tracked cards`}
         />
         <Stat
-          label="Active Signals"
-          value={String(stats?.trackedCards ?? 0)}
+          label="Avg Card Price"
+          value={stats?.avgMarketPrice != null ? formatCents(Math.round(stats.avgMarketPrice)) : "—"}
           sub="across all tracked"
           color="var(--accent)"
         />
@@ -454,11 +464,15 @@ export default function DashboardPage() {
                     {c.thesis.length > 75 ? c.thesis.slice(0, 72) + "…" : c.thesis}
                   </div>
                 </div>
-                <Sparkline
-                  data={[100, 105, 98, 110, 107, 115, 120, 118, 125, 130]}
-                  width={80}
-                  height={32}
-                />
+                {(data?.sparklines as Record<string, number[]> | undefined)?.[c.id]?.length ? (
+                  <Sparkline
+                    data={(data!.sparklines as Record<string, number[]>)[c.id]}
+                    width={80}
+                    height={32}
+                  />
+                ) : (
+                  <div style={{ width: 80, height: 32 }} />
+                )}
                 <div style={{ textAlign: "right" }}>
                   <div
                     style={{
@@ -479,29 +493,38 @@ export default function DashboardPage() {
 
         <Panel title="Market Pulse" padding={0}>
           <div style={{ padding: "4px 0" }}>
-            {MARKET_PULSE.map((p, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "12px 18px",
-                  borderBottom: i < MARKET_PULSE.length - 1 ? "1px solid var(--border)" : "none",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <Pill label={p.tag} color={pulseTagColor(p.tag)} />
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: "var(--text-3)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    {p.t} ago
-                  </span>
-                </div>
-                <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.4 }}>{p.text}</div>
+            {(data?.marketPulse ?? []).length === 0 ? (
+              <div style={{ padding: "20px 18px", color: "var(--text-3)", fontSize: 13 }}>
+                No significant price movements this week.
               </div>
-            ))}
+            ) : (
+              (data?.marketPulse as Array<{ tag: string; text: string; pctChange: number }> ?? []).map((p, i, arr) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: "12px 18px",
+                    borderBottom: i < arr.length - 1 ? "1px solid var(--border)" : "none",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <Pill label={p.tag} color={pulseTagColor(p.tag)} />
+                    {p.pctChange !== 0 && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: p.pctChange > 0 ? "var(--pos)" : "var(--neg)",
+                          fontFamily: "var(--font-mono)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {p.pctChange > 0 ? "+" : ""}{p.pctChange.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.4 }}>{p.text}</div>
+                </div>
+              ))
+            )}
           </div>
         </Panel>
       </div>

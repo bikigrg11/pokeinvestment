@@ -111,12 +111,151 @@ export const analyticsRouter = createTRPCRouter({
       totalMarketCap: null,
     };
 
+    // ─── Sentiment: % of cards whose price went up vs 2 weeks prior ───
+    // Uses max data date minus 14 days (not NOW()) since data may lag behind real time
+    type SentimentRow = { up: bigint; total: bigint };
+    const sentimentRows = await ctx.db.$queryRaw<SentimentRow[]>`
+      WITH max_date AS (
+        SELECT MAX(date) AS d FROM "LatestCardPrice"
+      ),
+      current AS (
+        SELECT "cardId", "marketPrice" FROM "LatestCardPrice"
+      ),
+      prior AS (
+        SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
+        FROM "CardPrice"
+        WHERE date <= (SELECT d - INTERVAL '14 days' FROM max_date)
+          AND "marketPrice" IS NOT NULL
+        ORDER BY "cardId", date DESC
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE c."marketPrice" > p."marketPrice") AS up,
+        COUNT(*) AS total
+      FROM current c
+      JOIN prior p ON p."cardId" = c."cardId"
+    `;
+    const sentUp = Number(sentimentRows[0]?.up ?? 0);
+    const sentTotal = Number(sentimentRows[0]?.total ?? 1);
+    const sentimentPct = Math.round((sentUp / sentTotal) * 100);
+    const sentimentLabel = sentimentPct >= 60 ? "Bullish" : sentimentPct >= 40 ? "Neutral" : "Bearish";
+
+    // ─── Last updated: most recent price date ───
+    type DateRow = { latest: Date };
+    const dateRows = await ctx.db.$queryRaw<DateRow[]>`
+      SELECT MAX(date) AS latest FROM "LatestCardPrice"
+    `;
+    const lastUpdated = dateRows[0]?.latest ?? new Date();
+
+    // ─── Sparklines for top 10 cards (10 weekly data points each) ───
+    const topCardIds = topByPrice.map((c) => c.id);
+    type SparkRow = { cardId: string; marketPrice: number; week: Date };
+    const sparkRows = topCardIds.length > 0
+      ? await ctx.db.$queryRawUnsafe<SparkRow[]>(`
+          SELECT "cardId", "marketPrice", date_trunc('week', date) AS week
+          FROM "CardPrice"
+          WHERE "cardId" = ANY($1)
+            AND "marketPrice" IS NOT NULL
+          ORDER BY "cardId", date DESC
+        `, topCardIds)
+      : [];
+
+    // Build sparkline map: cardId → last 10 weekly prices (oldest first)
+    const sparkMap = new Map<string, Map<string, number>>();
+    for (const r of sparkRows) {
+      if (!sparkMap.has(r.cardId)) sparkMap.set(r.cardId, new Map());
+      const weekMap = sparkMap.get(r.cardId)!;
+      const weekKey = new Date(r.week).toISOString().slice(0, 10);
+      // First seen per week = latest price (results ordered DESC)
+      if (!weekMap.has(weekKey) && weekMap.size < 10) {
+        weekMap.set(weekKey, r.marketPrice);
+      }
+    }
+    const sparklines: Record<string, number[]> = {};
+    for (const [id, weekMap] of sparkMap) {
+      sparklines[id] = [...weekMap.values()].reverse(); // oldest first
+    }
+
+    // ─── Market Pulse: detect real events from price changes ───
+    // Uses max data date minus 14 days (not NOW()) since data may lag behind real time
+    type PulseRow = {
+      cardId: string; name: string; setName: string;
+      currentPrice: number; prevPrice: number; pctChange: number;
+    };
+    const pulseRows = await ctx.db.$queryRaw<PulseRow[]>`
+      WITH max_date AS (
+        SELECT MAX(date) AS d FROM "LatestCardPrice"
+      ),
+      prev AS (
+        SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
+        FROM "CardPrice"
+        WHERE date <= (SELECT d - INTERVAL '14 days' FROM max_date)
+          AND "marketPrice" IS NOT NULL
+        ORDER BY "cardId", date DESC
+      )
+      SELECT
+        c.id AS "cardId", c.name, s.name AS "setName",
+        l."marketPrice" AS "currentPrice",
+        p."marketPrice" AS "prevPrice",
+        ROUND(((l."marketPrice" - p."marketPrice")::numeric / p."marketPrice") * 100, 1) AS "pctChange"
+      FROM "LatestCardPrice" l
+      JOIN prev p ON p."cardId" = l."cardId"
+      JOIN "Card" c ON c.id = l."cardId"
+      JOIN "Set" s ON s.id = c."setId"
+      WHERE p."marketPrice" > 500
+        AND l."marketPrice" != p."marketPrice"
+      ORDER BY ABS(l."marketPrice" - p."marketPrice") DESC
+      LIMIT 20
+    `;
+
+    // Build pulse events from real data
+    const marketPulse: Array<{ tag: string; text: string; pctChange: number }> = [];
+    const gainers = pulseRows.filter((r) => Number(r.pctChange) > 5).slice(0, 3);
+    const losers = pulseRows.filter((r) => Number(r.pctChange) < -5).slice(0, 2);
+
+    for (const g of gainers) {
+      marketPulse.push({
+        tag: Number(g.pctChange) >= 20 ? "BREAKOUT" : "PRICE",
+        text: `${g.name} (${g.setName}) up ${Number(g.pctChange).toFixed(1)}% this week — $${(g.prevPrice / 100).toFixed(0)} → $${(g.currentPrice / 100).toFixed(0)}`,
+        pctChange: Number(g.pctChange),
+      });
+    }
+    for (const l of losers) {
+      marketPulse.push({
+        tag: "DIP",
+        text: `${l.name} (${l.setName}) down ${Math.abs(Number(l.pctChange)).toFixed(1)}% this week — possible buy opportunity at $${(l.currentPrice / 100).toFixed(0)}`,
+        pctChange: Number(l.pctChange),
+      });
+    }
+
+    // Add grading event if any top grading card has big spread
+    if (topGradingVintage[0]?.psa10Price && topGradingVintage[0]?.rawPrice) {
+      const upside = (topGradingVintage[0].psa10Price / topGradingVintage[0].rawPrice).toFixed(0);
+      marketPulse.push({
+        tag: "GRADING",
+        text: `${topGradingVintage[0].name} showing ${upside}× PSA 10 premium — top grading arbitrage this week`,
+        pctChange: 0,
+      });
+    }
+
+    // Add volume leader
+    if (topByVolume[0]?.volume) {
+      marketPulse.push({
+        tag: "VOLUME",
+        text: `${topByVolume[0].name} (${topByVolume[0].setName}) leading volume with ${topByVolume[0].volume} sales this period`,
+        pctChange: 0,
+      });
+    }
+
     return {
       topByPrice,
       topByVolume,
       topGradingVintage,
       topGradingModern,
       vintageHolos,
+      sparklines,
+      marketPulse: marketPulse.slice(0, 5),
+      sentiment: { label: sentimentLabel, pct: sentimentPct },
+      lastUpdated,
       seriesPerformance: seriesPerf.map((r) => ({
         series: r.series,
         avgMarketPrice: Number(r.avgMarketPrice),
