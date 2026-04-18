@@ -41,21 +41,41 @@ type SeriesRow = {
 export const analyticsRouter = createTRPCRouter({
   /** All data needed to render the dashboard in one round-trip. */
   dashboard: publicProcedure.query(async ({ ctx }) => {
-    const [allCards, seriesPerf, statsRows] = await Promise.all([
+    // Run all independent queries in parallel — each fetches only what it needs
+    const [topByPrice, topByVolume, topGradingVintage, topGradingModern, vintageHolos, seriesPerf, statsRows] = await Promise.all([
       ctx.db.$queryRaw<CardRow[]>`
-        SELECT
-          c.id, c.name, c.rarity, c."imageSmall",
-          s.name        AS "setName",
-          s.series,
-          s."releaseDate",
-          l."marketPrice",
-          l.volume,
-          l."psa10Price",
-          l."rawPrice",
-          l.variant
-        FROM "LatestCardPrice" l
-        JOIN "Card" c ON c.id = l."cardId"
-        JOIN "Set"  s ON s.id = c."setId"
+        SELECT c.id, c.name, c.rarity, c."imageSmall", s.name AS "setName", s.series, s."releaseDate",
+               l."marketPrice", l.volume, l."psa10Price", l."rawPrice", l.variant
+        FROM "LatestCardPrice" l JOIN "Card" c ON c.id = l."cardId" JOIN "Set" s ON s.id = c."setId"
+        ORDER BY l."marketPrice" DESC NULLS LAST LIMIT 5
+      `,
+      ctx.db.$queryRaw<CardRow[]>`
+        SELECT c.id, c.name, c.rarity, c."imageSmall", s.name AS "setName", s.series, s."releaseDate",
+               l."marketPrice", l.volume, l."psa10Price", l."rawPrice", l.variant
+        FROM "LatestCardPrice" l JOIN "Card" c ON c.id = l."cardId" JOIN "Set" s ON s.id = c."setId"
+        WHERE l.volume IS NOT NULL
+        ORDER BY l.volume DESC LIMIT 5
+      `,
+      ctx.db.$queryRaw<CardRow[]>`
+        SELECT c.id, c.name, c.rarity, c."imageSmall", s.name AS "setName", s.series, s."releaseDate",
+               l."marketPrice", l.volume, l."psa10Price", l."rawPrice", l.variant
+        FROM "LatestCardPrice" l JOIN "Card" c ON c.id = l."cardId" JOIN "Set" s ON s.id = c."setId"
+        WHERE l."psa10Price" IS NOT NULL AND l."rawPrice" > 500 AND s."releaseDate" < '2003-01-01'
+        ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 5
+      `,
+      ctx.db.$queryRaw<CardRow[]>`
+        SELECT c.id, c.name, c.rarity, c."imageSmall", s.name AS "setName", s.series, s."releaseDate",
+               l."marketPrice", l.volume, l."psa10Price", l."rawPrice", l.variant
+        FROM "LatestCardPrice" l JOIN "Card" c ON c.id = l."cardId" JOIN "Set" s ON s.id = c."setId"
+        WHERE l."psa10Price" IS NOT NULL AND l."rawPrice" > 500 AND s."releaseDate" >= '2003-01-01'
+        ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 5
+      `,
+      ctx.db.$queryRaw<CardRow[]>`
+        SELECT c.id, c.name, c.rarity, c."imageSmall", s.name AS "setName", s.series, s."releaseDate",
+               l."marketPrice", l.volume, l."psa10Price", l."rawPrice", l.variant
+        FROM "LatestCardPrice" l JOIN "Card" c ON c.id = l."cardId" JOIN "Set" s ON s.id = c."setId"
+        WHERE s."releaseDate" < '2005-01-01' AND c.rarity IS NOT NULL AND (c.rarity ~* 'holo' OR c.rarity ~* 'rare')
+        ORDER BY l."marketPrice" DESC NULLS LAST LIMIT 5
       `,
       ctx.db.$queryRaw<SeriesRow[]>`
         SELECT s.series, AVG(l."marketPrice") AS "avgMarketPrice", COUNT(c.id) AS "cardCount"
@@ -76,34 +96,6 @@ export const analyticsRouter = createTRPCRouter({
       `,
     ]);
 
-    // Slice categories in JS — no extra DB round-trips
-    const topByPrice = allCards
-      .sort((a, b) => (b.marketPrice ?? 0) - (a.marketPrice ?? 0))
-      .slice(0, 5);
-
-    const topByVolume = allCards
-      .filter((c) => c.volume != null)
-      .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))
-      .slice(0, 5);
-
-    const topGradingVintage = allCards
-      .filter((c) => c.psa10Price != null && c.rawPrice != null && c.rawPrice > 500
-        && c.releaseDate != null && new Date(c.releaseDate) < new Date("2003-01-01"))
-      .sort((a, b) => ((b.psa10Price ?? 0) / (b.rawPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.rawPrice ?? 1)))
-      .slice(0, 5);
-
-    const topGradingModern = allCards
-      .filter((c) => c.psa10Price != null && c.rawPrice != null && c.rawPrice > 500
-        && c.releaseDate != null && new Date(c.releaseDate) >= new Date("2003-01-01"))
-      .sort((a, b) => ((b.psa10Price ?? 0) / (b.rawPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.rawPrice ?? 1)))
-      .slice(0, 5);
-
-    const vintageHolos = allCards
-      .filter((c) => c.releaseDate != null && new Date(c.releaseDate) < new Date("2005-01-01")
-        && c.rarity != null && (/holo/i.test(c.rarity) || /rare/i.test(c.rarity)))
-      .sort((a, b) => (b.marketPrice ?? 0) - (a.marketPrice ?? 0))
-      .slice(0, 5);
-
     const stats = statsRows[0] ?? {
       totalCards: BigInt(0),
       trackedCards: BigInt(0),
@@ -111,12 +103,12 @@ export const analyticsRouter = createTRPCRouter({
       totalMarketCap: null,
     };
 
-    // ─── Sentiment: % of cards whose price went up vs 2 weeks prior ───
-    // Uses max data date minus 14 days (not NOW()) since data may lag behind real time
+    // ─── Sentiment: % of cards whose price went up vs prior sync ───
+    // Compares latest date vs the next most recent distinct date (avoids synthetic data gaps)
     type SentimentRow = { up: bigint; total: bigint };
     const sentimentRows = await ctx.db.$queryRaw<SentimentRow[]>`
-      WITH max_date AS (
-        SELECT MAX(date) AS d FROM "LatestCardPrice"
+      WITH dates AS (
+        SELECT DISTINCT date FROM "CardPrice" WHERE "marketPrice" IS NOT NULL ORDER BY date DESC LIMIT 2
       ),
       current AS (
         SELECT "cardId", "marketPrice" FROM "LatestCardPrice"
@@ -124,7 +116,7 @@ export const analyticsRouter = createTRPCRouter({
       prior AS (
         SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
         FROM "CardPrice"
-        WHERE date <= (SELECT d - INTERVAL '14 days' FROM max_date)
+        WHERE date = (SELECT MIN(date) FROM dates)
           AND "marketPrice" IS NOT NULL
         ORDER BY "cardId", date DESC
       )
@@ -176,19 +168,19 @@ export const analyticsRouter = createTRPCRouter({
     }
 
     // ─── Market Pulse: detect real events from price changes ───
-    // Uses max data date minus 14 days (not NOW()) since data may lag behind real time
+    // Compares latest sync vs the previous sync date (not a fixed 14-day window)
     type PulseRow = {
       cardId: string; name: string; setName: string;
       currentPrice: number; prevPrice: number; pctChange: number;
     };
     const pulseRows = await ctx.db.$queryRaw<PulseRow[]>`
-      WITH max_date AS (
-        SELECT MAX(date) AS d FROM "LatestCardPrice"
+      WITH dates AS (
+        SELECT DISTINCT date FROM "CardPrice" WHERE "marketPrice" IS NOT NULL ORDER BY date DESC LIMIT 2
       ),
       prev AS (
         SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
         FROM "CardPrice"
-        WHERE date <= (SELECT d - INTERVAL '14 days' FROM max_date)
+        WHERE date = (SELECT MIN(date) FROM dates)
           AND "marketPrice" IS NOT NULL
         ORDER BY "cardId", date DESC
       )

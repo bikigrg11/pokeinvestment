@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
 import {
   Home,
   BarChart3,
@@ -24,6 +25,10 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data } = trpc.analytics.dashboard.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const sentiment = data?.sentiment;
+  const sentimentColor = sentiment?.label === "Bullish" ? "var(--pos)" : sentiment?.label === "Bearish" ? "var(--neg)" : "var(--text-2)";
+  const trackedCards = data?.stats?.trackedCards;
 
   return (
     <aside
@@ -145,15 +150,15 @@ export function Sidebar() {
               width: 6,
               height: 6,
               borderRadius: "50%",
-              background: "var(--pos)",
+              background: sentimentColor,
               display: "inline-block",
-              boxShadow: "0 0 6px var(--pos)",
+              boxShadow: `0 0 6px ${sentimentColor}`,
             }}
           />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--pos)" }}>Bullish</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: sentimentColor }}>{sentiment?.label ?? "—"}</span>
         </div>
         <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 4, fontFamily: "var(--font-mono)" }}>
-          8,240 sales today
+          {trackedCards != null ? `${trackedCards.toLocaleString()} cards tracked` : "Loading..."}
         </div>
       </div>
     </aside>
