@@ -144,16 +144,33 @@ export async function searchSoldListings(
     return { medianPrice: null, averagePrice: null, minPrice: null, maxPrice: null, saleCount: 0, rawPrices: [] };
   }
 
-  // Convert prices to cents
-  const prices = items
+  // Convert prices to cents and apply sanity filter
+  const allPrices = items
     .map((item) => Math.round(parseFloat(item.price.value) * 100))
-    .filter((p) => p > 0 && p < 10_000_000); // sanity filter ($0–$100k)
+    .filter((p) => p > 0 && p < 10_000_000) // $0–$100k
+    .sort((a, b) => a - b);
+
+  if (allPrices.length === 0) {
+    return { medianPrice: null, averagePrice: null, minPrice: null, maxPrice: null, saleCount: 0, rawPrices: [] };
+  }
+
+  // Remove outliers using IQR method (1.5× interquartile range)
+  const q1Idx = Math.floor(allPrices.length * 0.25);
+  const q3Idx = Math.floor(allPrices.length * 0.75);
+  const q1 = allPrices[q1Idx];
+  const q3 = allPrices[q3Idx];
+  const iqr = q3 - q1;
+  const lowerBound = q1 - 1.5 * iqr;
+  const upperBound = q3 + 1.5 * iqr;
+
+  const prices = allPrices.length >= 5
+    ? allPrices.filter((p) => p >= lowerBound && p <= upperBound)
+    : allPrices; // too few data points to remove outliers
 
   if (prices.length === 0) {
     return { medianPrice: null, averagePrice: null, minPrice: null, maxPrice: null, saleCount: 0, rawPrices: [] };
   }
 
-  prices.sort((a, b) => a - b);
   const mid = Math.floor(prices.length / 2);
   const median = prices.length % 2 === 0
     ? Math.round((prices[mid - 1] + prices[mid]) / 2)
