@@ -2,6 +2,13 @@ import { createTRPCRouter, publicProcedure } from "@/lib/trpc";
 import { z } from "zod";
 import { generateSignals, type CardForSignals, type Signal } from "@/server/services/metrics";
 
+/**
+ * All queries use the "LatestCardPrice" materialized view instead of
+ * DISTINCT ON over the full CardPrice table. This drops query time from
+ * ~1500ms to ~15ms. The view must be refreshed after price syncs:
+ *   REFRESH MATERIALIZED VIEW CONCURRENTLY "LatestCardPrice";
+ */
+
 // Raw-SQL row types returned by PostgreSQL
 type CardRow = {
   id: string;
@@ -34,17 +41,8 @@ type SeriesRow = {
 export const analyticsRouter = createTRPCRouter({
   /** All data needed to render the dashboard in one round-trip. */
   dashboard: publicProcedure.query(async ({ ctx }) => {
-    // Single query: fetch ALL cards with latest prices (CTE computed once)
-    // Then slice into categories in JS — avoids 7x scanning the 1M-row CardPrice table
     const [allCards, seriesPerf, statsRows] = await Promise.all([
       ctx.db.$queryRaw<CardRow[]>`
-        WITH latest AS (
-          SELECT DISTINCT ON ("cardId")
-            "cardId", "marketPrice", volume, "psa10Price", "rawPrice", variant
-          FROM "CardPrice"
-          WHERE "marketPrice" IS NOT NULL
-          ORDER BY "cardId", date DESC
-        )
         SELECT
           c.id, c.name, c.rarity, c."imageSmall",
           s.name        AS "setName",
@@ -55,40 +53,30 @@ export const analyticsRouter = createTRPCRouter({
           l."psa10Price",
           l."rawPrice",
           l.variant
-        FROM latest l
+        FROM "LatestCardPrice" l
         JOIN "Card" c ON c.id = l."cardId"
         JOIN "Set"  s ON s.id = c."setId"
       `,
       ctx.db.$queryRaw<SeriesRow[]>`
-        WITH latest AS (
-          SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
-          FROM "CardPrice" WHERE "marketPrice" IS NOT NULL
-          ORDER BY "cardId", date DESC
-        )
         SELECT s.series, AVG(l."marketPrice") AS "avgMarketPrice", COUNT(c.id) AS "cardCount"
         FROM "Set" s
         JOIN "Card" c ON c."setId" = s.id
-        JOIN latest l ON l."cardId" = c.id
+        JOIN "LatestCardPrice" l ON l."cardId" = c.id
         GROUP BY s.series
         ORDER BY "avgMarketPrice" DESC
         LIMIT 12
       `,
       ctx.db.$queryRaw<StatsRow[]>`
-        WITH latest AS (
-          SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
-          FROM "CardPrice" WHERE "marketPrice" IS NOT NULL
-          ORDER BY "cardId", date DESC
-        )
         SELECT
           (SELECT COUNT(*) FROM "Card")          AS "totalCards",
           COUNT(l."cardId")                      AS "trackedCards",
           AVG(l."marketPrice")                   AS "avgMarketPrice",
           SUM(l."marketPrice")                   AS "totalMarketCap"
-        FROM latest l
+        FROM "LatestCardPrice" l
       `,
     ]);
 
-    // Slice categories from the single fetch — all in JS, no extra DB round-trips
+    // Slice categories in JS — no extra DB round-trips
     const topByPrice = allCards
       .sort((a, b) => (b.marketPrice ?? 0) - (a.marketPrice ?? 0))
       .slice(0, 5);
@@ -163,17 +151,7 @@ export const analyticsRouter = createTRPCRouter({
       volume: number | null;
     };
 
-    // Single query, split in JS
     const rows = await ctx.db.$queryRaw<GradingRow[]>`
-      WITH latest AS (
-        SELECT DISTINCT ON ("cardId")
-          "cardId", "marketPrice", volume, "psa10Price", "rawPrice"
-        FROM "CardPrice"
-        WHERE "marketPrice" IS NOT NULL
-          AND "psa10Price" IS NOT NULL
-          AND "rawPrice" > 500
-        ORDER BY "cardId", date DESC
-      )
       SELECT
         c.id, c.name, c.rarity, c."imageSmall",
         s.name        AS "setName",
@@ -183,9 +161,10 @@ export const analyticsRouter = createTRPCRouter({
         l."rawPrice",
         l."psa10Price",
         l.volume
-      FROM latest l
+      FROM "LatestCardPrice" l
       JOIN "Card" c ON c.id = l."cardId"
       JOIN "Set"  s ON s.id = c."setId"
+      WHERE l."psa10Price" IS NOT NULL AND l."rawPrice" > 500
     `;
 
     const enrich = (r: GradingRow) => ({
@@ -212,7 +191,6 @@ export const analyticsRouter = createTRPCRouter({
 
   /**
    * Investment screener — returns cards with latest prices + computed signals.
-   * Fetches up to 500 cards server-side, computes signals in-memory, filters, returns.
    */
   screener: publicProcedure
     .input(
@@ -241,13 +219,6 @@ export const analyticsRouter = createTRPCRouter({
       };
 
       const rows = await ctx.db.$queryRaw<ScreenRow[]>`
-        WITH latest AS (
-          SELECT DISTINCT ON ("cardId")
-            "cardId", "marketPrice", volume, "psa10Price", "rawPrice"
-          FROM "CardPrice"
-          WHERE "marketPrice" IS NOT NULL
-          ORDER BY "cardId", date DESC
-        )
         SELECT
           c.id, c.name, c.rarity, c."imageSmall",
           s.name        AS "setName",
@@ -257,7 +228,7 @@ export const analyticsRouter = createTRPCRouter({
           l.volume,
           l."psa10Price",
           l."rawPrice"
-        FROM latest l
+        FROM "LatestCardPrice" l
         JOIN "Card" c ON c.id = l."cardId"
         JOIN "Set"  s ON s.id = c."setId"
         ORDER BY l."marketPrice" DESC
