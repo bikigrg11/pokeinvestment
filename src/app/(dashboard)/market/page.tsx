@@ -27,14 +27,14 @@ const TABS: { key: Tab; label: string }[] = [
 
 type EnrichedCard = {
   id: string; name: string; imageSmall: string | null; setName: string;
-  rarity: string | null; raw: number; psa10: number; gradeUpside: number;
+  rarity: string | null; mp: number; raw: number; psa10: number; gradeUpside: number;
   signals: string[]; buyScore: number; vol: number; year: number;
   [key: string]: unknown;
 };
 
 function enrichCard(c: Record<string, unknown>): EnrichedCard {
   const mp = (c.marketPrice as number | null) ?? 0;
-  const raw = (c.rawPrice as number | null) ?? mp;
+  const raw = (c.rawPrice as number | null) ?? 0;
   const psa10 = (c.psa10Price as number | null) ?? 0;
   const vol = (c.volume as number | null) ?? 0;
   const rarity = (c.rarity as string) ?? "";
@@ -58,7 +58,7 @@ function enrichCard(c: Record<string, unknown>): EnrichedCard {
   if (signals.length > 0) score += 8;
   score = Math.min(99, Math.max(10, score));
 
-  return { ...c, raw, psa10, gradeUpside, signals, buyScore: score, vol, year } as EnrichedCard;
+  return { ...c, mp, raw, psa10, gradeUpside, signals, buyScore: score, vol, year } as EnrichedCard;
 }
 
 export default function MarketPage() {
@@ -92,7 +92,7 @@ export default function MarketPage() {
     if (tab === "buy") list.sort((a, b) => b.buyScore - a.buyScore);
     if (tab === "momentum") list.sort((a, b) => (b.vol ?? 0) - (a.vol ?? 0));
     if (tab === "grading") list.sort((a, b) => b.gradeUpside - a.gradeUpside);
-    if (tab === "vintage") return list.filter((c) => c.year < 2005).sort((a, b) => b.raw - a.raw);
+    if (tab === "vintage") return list.filter((c) => c.year < 2005).sort((a, b) => b.mp - a.mp);
     if (tab === "modern") return list.filter((c) => c.year >= 2019).sort((a, b) => b.buyScore - a.buyScore);
     return list.slice(0, 30);
   }, [allCards, tab]);
@@ -180,7 +180,7 @@ export default function MarketPage() {
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", textAlign: "right", color: "var(--text)" }}>{formatCents(c.raw)}</td>
+                    <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", textAlign: "right", color: "var(--text)" }}>{formatCents(c.mp)}</td>
                     <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", textAlign: "right", color: "var(--text-2)" }}>{c.gradeUpside}x</td>
                     <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", textAlign: "right", color: "var(--text-2)" }}>{c.vol ?? "—"}</td>
                     <td style={{ padding: "10px 14px" }}>
@@ -188,7 +188,7 @@ export default function MarketPage() {
                         {c.signals.slice(0, 2).map((s: string) => <Pill key={s} label={s} />)}
                       </div>
                     </td>
-                    <td style={{ padding: "10px 14px" }}><Sparkline data={[c.raw * 0.9, c.raw * 0.95, c.raw * 1.02, c.raw * 0.98, c.raw]} width={80} height={26} /></td>
+                    <td style={{ padding: "10px 14px" }}><Sparkline data={[c.mp * 0.9, c.mp * 0.95, c.mp * 1.02, c.mp * 0.98, c.mp]} width={80} height={26} /></td>
                     <td style={{ padding: "10px 14px", textAlign: "right" }}>
                       <span style={{
                         fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700,
