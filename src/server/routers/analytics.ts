@@ -18,12 +18,6 @@ type CardRow = {
   variant: string;
 };
 
-type SeriesRow = {
-  series: string;
-  avgMarketPrice: number;
-  cardCount: bigint;
-};
-
 type StatsRow = {
   totalCards: bigint;
   trackedCards: bigint;
@@ -31,94 +25,96 @@ type StatsRow = {
   totalMarketCap: number | null;
 };
 
+type SeriesRow = {
+  series: string;
+  avgMarketPrice: number;
+  cardCount: bigint;
+};
+
 export const analyticsRouter = createTRPCRouter({
   /** All data needed to render the dashboard in one round-trip. */
   dashboard: publicProcedure.query(async ({ ctx }) => {
-    // Latest price per card using DISTINCT ON (PostgreSQL-specific)
-    const base = `
-      WITH latest AS (
-        SELECT DISTINCT ON ("cardId")
-          "cardId", "marketPrice", volume, "psa10Price", "rawPrice", variant
-        FROM "CardPrice"
-        WHERE "marketPrice" IS NOT NULL
-        ORDER BY "cardId", date DESC
-      )
-      SELECT
-        c.id, c.name, c.rarity, c."imageSmall",
-        s.name        AS "setName",
-        s.series,
-        s."releaseDate",
-        l."marketPrice",
-        l.volume,
-        l."psa10Price",
-        l."rawPrice",
-        l.variant
-      FROM latest l
-      JOIN "Card" c ON c.id = l."cardId"
-      JOIN "Set"  s ON s.id = c."setId"
-    `;
+    // Single query: fetch ALL cards with latest prices (CTE computed once)
+    // Then slice into categories in JS — avoids 7x scanning the 1M-row CardPrice table
+    const [allCards, seriesPerf, statsRows] = await Promise.all([
+      ctx.db.$queryRaw<CardRow[]>`
+        WITH latest AS (
+          SELECT DISTINCT ON ("cardId")
+            "cardId", "marketPrice", volume, "psa10Price", "rawPrice", variant
+          FROM "CardPrice"
+          WHERE "marketPrice" IS NOT NULL
+          ORDER BY "cardId", date DESC
+        )
+        SELECT
+          c.id, c.name, c.rarity, c."imageSmall",
+          s.name        AS "setName",
+          s.series,
+          s."releaseDate",
+          l."marketPrice",
+          l.volume,
+          l."psa10Price",
+          l."rawPrice",
+          l.variant
+        FROM latest l
+        JOIN "Card" c ON c.id = l."cardId"
+        JOIN "Set"  s ON s.id = c."setId"
+      `,
+      ctx.db.$queryRaw<SeriesRow[]>`
+        WITH latest AS (
+          SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
+          FROM "CardPrice" WHERE "marketPrice" IS NOT NULL
+          ORDER BY "cardId", date DESC
+        )
+        SELECT s.series, AVG(l."marketPrice") AS "avgMarketPrice", COUNT(c.id) AS "cardCount"
+        FROM "Set" s
+        JOIN "Card" c ON c."setId" = s.id
+        JOIN latest l ON l."cardId" = c.id
+        GROUP BY s.series
+        ORDER BY "avgMarketPrice" DESC
+        LIMIT 12
+      `,
+      ctx.db.$queryRaw<StatsRow[]>`
+        WITH latest AS (
+          SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
+          FROM "CardPrice" WHERE "marketPrice" IS NOT NULL
+          ORDER BY "cardId", date DESC
+        )
+        SELECT
+          (SELECT COUNT(*) FROM "Card")          AS "totalCards",
+          COUNT(l."cardId")                      AS "trackedCards",
+          AVG(l."marketPrice")                   AS "avgMarketPrice",
+          SUM(l."marketPrice")                   AS "totalMarketCap"
+        FROM latest l
+      `,
+    ]);
 
-    const [topByPrice, topByVolume, topGradingVintage, topGradingModern, vintageHolos, seriesPerf, statsRows] =
-      await Promise.all([
-        // Top 5 by market price
-        ctx.db.$queryRawUnsafe<CardRow[]>(
-          `${base} ORDER BY l."marketPrice" DESC LIMIT 5`
-        ),
-        // Top 5 by volume
-        ctx.db.$queryRawUnsafe<CardRow[]>(
-          `${base} AND l.volume IS NOT NULL ORDER BY l.volume DESC LIMIT 5`
-        ),
-        // Top 5 vintage grading upside (pre-2003, psa10/raw ratio)
-        ctx.db.$queryRawUnsafe<CardRow[]>(
-          `${base}
-           AND l."psa10Price" IS NOT NULL AND l."rawPrice" > 500
-           AND s."releaseDate" < '2003-01-01'
-           ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 5`
-        ),
-        // Top 5 modern grading upside (2003+, psa10/raw ratio)
-        ctx.db.$queryRawUnsafe<CardRow[]>(
-          `${base}
-           AND l."psa10Price" IS NOT NULL AND l."rawPrice" > 500
-           AND s."releaseDate" >= '2003-01-01'
-           ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 5`
-        ),
-        // Top 5 vintage holos (pre-2005, rarity contains "Holo" or "Rare")
-        ctx.db.$queryRawUnsafe<CardRow[]>(
-          `${base}
-           AND s."releaseDate" < '2005-01-01'
-           AND (c.rarity ILIKE '%holo%' OR c.rarity ILIKE '%rare%')
-           ORDER BY l."marketPrice" DESC LIMIT 5`
-        ),
-        // Average price by series for bar chart
-        ctx.db.$queryRaw<SeriesRow[]>`
-          WITH latest AS (
-            SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
-            FROM "CardPrice" WHERE "marketPrice" IS NOT NULL
-            ORDER BY "cardId", date DESC
-          )
-          SELECT s.series, AVG(l."marketPrice") AS "avgMarketPrice", COUNT(c.id) AS "cardCount"
-          FROM "Set" s
-          JOIN "Card" c ON c."setId" = s.id
-          JOIN latest l ON l."cardId" = c.id
-          GROUP BY s.series
-          ORDER BY "avgMarketPrice" DESC
-          LIMIT 12
-        `,
-        // Summary stats
-        ctx.db.$queryRaw<StatsRow[]>`
-          WITH latest AS (
-            SELECT DISTINCT ON ("cardId") "cardId", "marketPrice"
-            FROM "CardPrice" WHERE "marketPrice" IS NOT NULL
-            ORDER BY "cardId", date DESC
-          )
-          SELECT
-            (SELECT COUNT(*) FROM "Card")          AS "totalCards",
-            COUNT(l."cardId")                      AS "trackedCards",
-            AVG(l."marketPrice")                   AS "avgMarketPrice",
-            SUM(l."marketPrice")                   AS "totalMarketCap"
-          FROM latest l
-        `,
-      ]);
+    // Slice categories from the single fetch — all in JS, no extra DB round-trips
+    const topByPrice = allCards
+      .sort((a, b) => (b.marketPrice ?? 0) - (a.marketPrice ?? 0))
+      .slice(0, 5);
+
+    const topByVolume = allCards
+      .filter((c) => c.volume != null)
+      .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))
+      .slice(0, 5);
+
+    const topGradingVintage = allCards
+      .filter((c) => c.psa10Price != null && c.rawPrice != null && c.rawPrice > 500
+        && c.releaseDate != null && new Date(c.releaseDate) < new Date("2003-01-01"))
+      .sort((a, b) => ((b.psa10Price ?? 0) / (b.rawPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.rawPrice ?? 1)))
+      .slice(0, 5);
+
+    const topGradingModern = allCards
+      .filter((c) => c.psa10Price != null && c.rawPrice != null && c.rawPrice > 500
+        && c.releaseDate != null && new Date(c.releaseDate) >= new Date("2003-01-01"))
+      .sort((a, b) => ((b.psa10Price ?? 0) / (b.rawPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.rawPrice ?? 1)))
+      .slice(0, 5);
+
+    const vintageHolos = allCards
+      .filter((c) => c.releaseDate != null && new Date(c.releaseDate) < new Date("2005-01-01")
+        && c.rarity != null && (/holo/i.test(c.rarity) || /rare/i.test(c.rarity)))
+      .sort((a, b) => (b.marketPrice ?? 0) - (a.marketPrice ?? 0))
+      .slice(0, 5);
 
     const stats = statsRows[0] ?? {
       totalCards: BigInt(0),
@@ -167,7 +163,8 @@ export const analyticsRouter = createTRPCRouter({
       volume: number | null;
     };
 
-    const base = `
+    // Single query, split in JS
+    const rows = await ctx.db.$queryRaw<GradingRow[]>`
       WITH latest AS (
         SELECT DISTINCT ON ("cardId")
           "cardId", "marketPrice", volume, "psa10Price", "rawPrice"
@@ -191,26 +188,26 @@ export const analyticsRouter = createTRPCRouter({
       JOIN "Set"  s ON s.id = c."setId"
     `;
 
-    const [vintage, modern] = await Promise.all([
-      ctx.db.$queryRawUnsafe<GradingRow[]>(
-        `${base} AND s."releaseDate" < '2003-01-01'
-         ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 100`
-      ),
-      ctx.db.$queryRawUnsafe<GradingRow[]>(
-        `${base} AND s."releaseDate" >= '2003-01-01'
-         ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 100`
-      ),
-    ]);
+    const enrich = (r: GradingRow) => ({
+      ...r,
+      gradingUpside: r.psa10Price != null && r.rawPrice != null && r.rawPrice > 0
+        ? +(r.psa10Price / r.rawPrice).toFixed(2)
+        : null,
+    });
 
-    const enrich = (rows: GradingRow[]) =>
-      rows.map((r) => ({
-        ...r,
-        gradingUpside: r.psa10Price != null && r.rawPrice != null && r.rawPrice > 0
-          ? +(r.psa10Price / r.rawPrice).toFixed(2)
-          : null,
-      }));
+    const vintage = rows
+      .filter((r) => r.releaseDate != null && new Date(r.releaseDate) < new Date("2003-01-01"))
+      .sort((a, b) => ((b.psa10Price ?? 0) / (b.rawPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.rawPrice ?? 1)))
+      .slice(0, 100)
+      .map(enrich);
 
-    return { vintage: enrich(vintage), modern: enrich(modern) };
+    const modern = rows
+      .filter((r) => r.releaseDate != null && new Date(r.releaseDate) >= new Date("2003-01-01"))
+      .sort((a, b) => ((b.psa10Price ?? 0) / (b.rawPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.rawPrice ?? 1)))
+      .slice(0, 100)
+      .map(enrich);
+
+    return { vintage, modern };
   }),
 
   /**
