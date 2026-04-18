@@ -1,35 +1,25 @@
 import { memo } from "react";
-
-const SIGNAL_COLORS: Record<string, string> = {
-  Undervalued: "#22d3ee",
-  Momentum: "#f59e0b",
-  GradingCandidate: "#a78bfa",
-  HighLiquidity: "#34d399",
-  CollectorFavorite: "#f472b6",
-  Breakout: "#fb923c",
-  SteadyGainer: "#60a5fa",
-  BlueChip: "#fbbf24",
-};
+import { getSignalColor } from "@/lib/utils/signals";
 
 interface SignalBadgeProps {
   signal: string;
 }
 
 export const SignalBadge = memo(function SignalBadge({ signal }: SignalBadgeProps) {
-  const color = SIGNAL_COLORS[signal] ?? "#64748b";
-  const label = signal.replace(/([A-Z])/g, " $1").trim(); // "GradingCandidate" → "Grading Candidate"
+  const color = getSignalColor(signal);
+  const label = signal.replace(/([A-Z])/g, " $1").trim();
 
   return (
     <span
       style={{
-        background: `${color}22`,
+        background: `${color}1a`,
         color,
-        border: `1px solid ${color}44`,
+        border: `1px solid ${color}55`,
         padding: "2px 8px",
-        borderRadius: 4,
+        borderRadius: 999,
         fontSize: 10,
         fontWeight: 600,
-        letterSpacing: "0.5px",
+        letterSpacing: "0.3px",
         textTransform: "uppercase",
         whiteSpace: "nowrap",
         display: "inline-block",

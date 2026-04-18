@@ -4,64 +4,156 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home,
-  Search,
+  BarChart3,
+  LayoutGrid,
+  Award,
+  Filter,
   Layers,
   Package,
-  Briefcase,
-  Activity,
-  TrendingUp,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: Home },
-  { href: "/market", label: "Market", icon: TrendingUp },
-  { href: "/cards", label: "Cards", icon: Search },
+  { href: "/market", label: "Market", icon: BarChart3 },
+  { href: "/cards", label: "Cards DB", icon: LayoutGrid },
+  { href: "/grading", label: "Grading", icon: Award },
+  { href: "/analytics", label: "Screener", icon: Filter },
   { href: "/sets", label: "Sets", icon: Layers },
   { href: "/sealed", label: "Sealed", icon: Package },
-  { href: "/portfolio", label: "Portfolio", icon: Briefcase },
-  { href: "/analytics", label: "Screener", icon: Activity },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-16 lg:w-56 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0">
+    <aside
+      style={{
+        width: 232,
+        minHeight: "100vh",
+        position: "sticky",
+        top: 0,
+        alignSelf: "flex-start",
+        background: "var(--bg-panel)",
+        borderRight: "1px solid var(--border)",
+        display: "flex",
+        flexDirection: "column",
+        padding: "20px 12px",
+        gap: 4,
+        flexShrink: 0,
+        zIndex: 20,
+      }}
+    >
       {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-slate-800 gap-2">
-        <div className="w-7 h-7 rounded bg-amber-400 flex items-center justify-center flex-shrink-0">
-          <span className="text-slate-950 font-bold text-xs">P</span>
+      <div style={{ padding: "4px 8px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "var(--radius)",
+            background: "linear-gradient(135deg, var(--accent), var(--accent-2))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: 18, color: "var(--bg-page)", fontWeight: 800 }}>◆</span>
         </div>
-        <span className="hidden lg:block text-sm font-semibold text-slate-100 tracking-wide">
-          PokeInvestment
-        </span>
+        <div>
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 17,
+              fontWeight: 800,
+              color: "var(--text)",
+              letterSpacing: "-0.5px",
+              lineHeight: 1.1,
+            }}
+          >
+            PokeInvest
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              color: "var(--text-3)",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+            }}
+          >
+            TERMINAL v2.4
+          </div>
+        </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-3 space-y-0.5 px-2">
+      <nav style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+          const isActive =
+            href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
-                active
-                  ? "bg-amber-400/10 text-amber-400"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-              }`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "9px 12px",
+                borderRadius: "var(--radius)",
+                borderLeft: isActive ? "3px solid var(--accent)" : "3px solid transparent",
+                background: isActive ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "transparent",
+                color: isActive ? "var(--accent)" : "var(--text-3)",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                transition: "all 0.15s",
+              }}
             >
-              <Icon size={16} className="flex-shrink-0" />
-              <span className="hidden lg:block">{label}</span>
+              <Icon size={16} />
+              {label}
             </Link>
           );
         })}
       </nav>
 
-      {/* Bottom */}
-      <div className="p-3 border-t border-slate-800">
-        <div className="hidden lg:block text-xs text-slate-600 text-center">
-          v0.1.0
+      {/* Market Status Footer */}
+      <div
+        style={{
+          margin: "8px 4px 0",
+          padding: "14px 12px",
+          background: "var(--bg-panel-2)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 9,
+            color: "var(--text-3)",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "1.2px",
+            marginBottom: 8,
+          }}
+        >
+          MARKET STATUS
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: "var(--pos)",
+              display: "inline-block",
+              boxShadow: "0 0 6px var(--pos)",
+            }}
+          />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--pos)" }}>Bullish</span>
+        </div>
+        <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 4, fontFamily: "var(--font-mono)" }}>
+          8,240 sales today
         </div>
       </div>
     </aside>

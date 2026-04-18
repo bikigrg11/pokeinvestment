@@ -4,9 +4,9 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { trpc as api } from "@/lib/trpc/client";
-import { SortableTable } from "@/components/ui/SortableTable";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { MiniSparkline } from "@/components/charts/MiniSparkline";
+import { CardArt } from "@/components/ui/CardArt";
+import { Pill } from "@/components/ui/Pill";
 import { formatCents } from "@/lib/utils/formatting";
 
 const SIGNALS = [
@@ -20,18 +20,7 @@ const SIGNALS = [
   "BlueChip",
 ];
 
-const SELECT_STYLE: React.CSSProperties = {
-  padding: "7px 12px",
-  borderRadius: 6,
-  border: "1px solid #1e293b",
-  background: "#0c1222",
-  color: "#cbd5e1",
-  fontSize: 12,
-  outline: "none",
-};
-
 // Module-level cache — survives React re-mounts and page navigations
-// so navigating back to /cards restores the previous filter state instantly.
 const _filterCache = {
   search: "",
   filterSet: "",
@@ -39,41 +28,32 @@ const _filterCache = {
   filterSignal: "",
 };
 
-function TableSkeleton() {
-  return (
-    <div style={{ border: "1px solid #1e293b", borderRadius: 8, overflow: "hidden" }}>
-      <div style={{ padding: "10px 14px", background: "#0c1222", borderBottom: "2px solid #1e293b", display: "flex", gap: 16 }}>
-        {["40%", "20%", "15%", "10%", "8%", "7%"].map((w, i) => (
-          <div key={i} className="skeleton" style={{ height: 10, width: w, borderRadius: 3 }} />
-        ))}
-      </div>
-      {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} style={{ padding: "12px 14px", borderBottom: "1px solid #1e293b22", display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ flex: "0 0 40%", display: "flex", flexDirection: "column", gap: 5 }}>
-            <div className="skeleton" style={{ height: 13, width: "70%", borderRadius: 3 }} />
-            <div className="skeleton" style={{ height: 10, width: "40%", borderRadius: 3 }} />
-          </div>
-          <div className="skeleton" style={{ height: 11, width: "20%", borderRadius: 3 }} />
-          <div className="skeleton" style={{ height: 11, width: "15%", borderRadius: 3 }} />
-          <div className="skeleton" style={{ height: 11, width: "10%", borderRadius: 3, marginLeft: "auto" }} />
-          <div className="skeleton" style={{ height: 32, width: 80, borderRadius: 3 }} />
-          <div className="skeleton" style={{ height: 11, width: "7%", borderRadius: 3 }} />
-        </div>
-      ))}
-    </div>
-  );
+function enrichCard(c: Record<string, unknown>) {
+  const mp = (c as { prices?: Array<{ marketPrice?: number | null }> }).prices?.[0]?.marketPrice ?? 0;
+  const raw = mp;
+  const psa10 = (c as { prices?: Array<{ psa10Price?: number | null }> }).prices?.[0]?.psa10Price ?? 0;
+  const rarity = (c as { rarity?: string }).rarity ?? "";
+  const gradeUpside = raw > 0 && psa10 > raw ? +(psa10 / raw).toFixed(1) : 0;
+  const signals: string[] = [];
+  if (gradeUpside >= 3) signals.push("Grading Candidate");
+  if (rarity && ["Rare Holo", "Illustration Rare", "Rare Secret"].includes(rarity)) signals.push("Collector Favorite");
+
+  let score = 50;
+  if (gradeUpside >= 5) score += 15;
+  else if (gradeUpside >= 2) score += 8;
+  if (signals.length > 0) score += 8;
+  score = Math.min(99, Math.max(10, score));
+  return { raw, psa10, gradeUpside, signals, buyScore: score };
 }
 
 export default function CardsPage() {
   const router = useRouter();
 
-  // Initialise from cache so state is restored instantly on back-navigation
   const [search, setSearch] = useState(_filterCache.search);
   const [filterSet, setFilterSet] = useState(_filterCache.filterSet);
   const [filterRarity, setFilterRarity] = useState(_filterCache.filterRarity);
   const [filterSignal, setFilterSignal] = useState(_filterCache.filterSignal);
 
-  // Debounced search — only fires the tRPC query 300ms after the user stops typing
   const [debouncedSearch, setDebouncedSearch] = useState(_filterCache.search);
   useEffect(() => {
     _filterCache.search = search;
@@ -81,7 +61,6 @@ export default function CardsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Keep remaining filter values synced to cache
   useEffect(() => { _filterCache.filterSet = filterSet; }, [filterSet]);
   useEffect(() => { _filterCache.filterRarity = filterRarity; }, [filterRarity]);
   useEffect(() => { _filterCache.filterSignal = filterSignal; }, [filterSignal]);
@@ -95,163 +74,93 @@ export default function CardsPage() {
 
   const { data: setsData } = api.sets.list.useQuery({});
 
-  const cards = useMemo(() => {
-    const raw = data?.cards ?? [];
-    if (!filterSignal) return raw;
-    return raw;
-  }, [data, filterSignal]);
+  const cards = useMemo(() => data?.cards ?? [], [data]);
 
   const uniqueRarities = useMemo(() => {
     const rarities = new Set<string>();
-    (data?.cards ?? []).forEach((c) => { if (c.rarity) rarities.add(c.rarity); });
+    cards.forEach((c) => { if (c.rarity) rarities.add(c.rarity); });
     return [...rarities].sort();
-  }, [data]);
+  }, [cards]);
 
   const sets = setsData ?? [];
 
-  type CardRow = Record<string, unknown> & {
-    id: string;
-    name: string;
-    cardNumber: string | null;
-    rarity: string | null;
-    set: { name: string; series: string };
-    prices: Array<{ marketPrice: number | null; date: Date }>;
+  const inpStyle: React.CSSProperties = {
+    padding: "9px 12px", borderRadius: "var(--radius)", border: "1px solid var(--border)",
+    background: "var(--bg-panel)", color: "var(--text)", fontSize: 13, outline: "none",
   };
 
-  const columns = [
-    {
-      key: "name",
-      label: "Card",
-      bold: true,
-      render: (row: CardRow) => (
-        <div>
-          <span className="cell-name" style={{ fontWeight: 600, color: "#e2e8f0" }}>{row.name}</span>
-          {row.cardNumber && (
-            <span style={{ color: "#64748b", fontSize: 11, marginLeft: 8 }}>
-              #{row.cardNumber}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "setName",
-      label: "Set",
-      render: (row: CardRow) => (
-        <span style={{ color: "#94a3b8", fontSize: 12 }}>{row.set.name}</span>
-      ),
-    },
-    {
-      key: "rarity",
-      label: "Rarity",
-      render: (row: CardRow) => (
-        <span style={{ color: "#94a3b8", fontSize: 12 }}>{row.rarity ?? "—"}</span>
-      ),
-    },
-    {
-      key: "marketPrice",
-      label: "Price",
-      align: "right" as const,
-      mono: true,
-      render: (row: CardRow) => {
-        const latest = row.prices[0];
-        const price = latest?.marketPrice ?? null;
-        return price != null ? formatCents(price) : <span style={{ color: "#475569" }}>No price</span>;
-      },
-    },
-    {
-      key: "sparkline",
-      label: "Trend",
-      sortable: false,
-      render: (row: CardRow) => {
-        const sparkData = row.prices
-          .slice()
-          .reverse()
-          .map((p) => ({ value: (p.marketPrice ?? 0) / 100 }));
-        return <MiniSparkline data={sparkData} width={80} height={32} />;
-      },
-    },
-    {
-      key: "volume",
-      label: "Vol",
-      align: "right" as const,
-      mono: true,
-      render: (row: CardRow) => {
-        const latest = row.prices[0] as { volume?: number | null } | undefined;
-        return latest?.volume != null ? String(latest.volume) : "—";
-      },
-    },
-  ];
-
   return (
-    <div>
-      <h1 style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9", margin: "0 0 20px" }}>
-        Card Database
-      </h1>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: "var(--display-weight)" as unknown as number, color: "var(--text)", margin: 0 }}>Card Database</h1>
+        <p style={{ color: "var(--text-3)", fontSize: 14, margin: "4px 0 0" }}>
+          {isLoading ? "Loading..." : `${cards.length.toLocaleString()} cards tracked. Click any to run full analysis.`}
+        </p>
+      </div>
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ position: "relative", flex: "1 1 240px" }}>
-          <Search
-            size={14}
-            color="#64748b"
-            style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}
-          />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search cards or sets…"
-            style={{
-              width: "100%",
-              padding: "8px 12px 8px 34px",
-              borderRadius: 6,
-              border: "1px solid #1e293b",
-              background: "#0c1222",
-              color: "#e2e8f0",
-              fontSize: 13,
-              outline: "none",
-              boxSizing: "border-box",
-            }}
-          />
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: "1 1 300px" }}>
+          <div style={{ position: "absolute", left: 12, top: 11, color: "var(--text-3)" }}><Search size={14} /></div>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search cards by name or set..." style={{ ...inpStyle, width: "100%", paddingLeft: 34, boxSizing: "border-box" }} />
         </div>
-
-        <select value={filterSet} onChange={(e) => setFilterSet(e.target.value)} style={SELECT_STYLE}>
+        <select value={filterSet} onChange={(e) => setFilterSet(e.target.value)} style={inpStyle}>
           <option value="">All Sets</option>
-          {sets.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
+          {sets.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-
-        <select value={filterRarity} onChange={(e) => setFilterRarity(e.target.value)} style={SELECT_STYLE}>
+        <select value={filterRarity} onChange={(e) => setFilterRarity(e.target.value)} style={inpStyle}>
           <option value="">All Rarities</option>
-          {uniqueRarities.map((r) => (
-            <option key={r} value={r}>{r}</option>
-          ))}
+          {uniqueRarities.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
-
-        <select value={filterSignal} onChange={(e) => setFilterSignal(e.target.value)} style={SELECT_STYLE}>
+        <select value={filterSignal} onChange={(e) => setFilterSignal(e.target.value)} style={inpStyle}>
           <option value="">All Signals</option>
-          {SIGNALS.map((s) => (
-            <option key={s} value={s}>{s.replace(/([A-Z])/g, " $1").trim()}</option>
-          ))}
+          {SIGNALS.map((s) => <option key={s} value={s}>{s.replace(/([A-Z])/g, " $1").trim()}</option>)}
         </select>
-
-        <span style={{ color: "#64748b", fontSize: 12 }}>
-          {isLoading ? "Loading…" : `${cards.length} results`}
-        </span>
       </div>
 
       {isError ? (
         <ErrorState message="Failed to load cards" onRetry={() => void refetch()} />
       ) : isLoading ? (
-        <TableSkeleton />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+          {[...Array(12)].map((_, i) => <div key={i} className="skeleton" style={{ height: 240, borderRadius: "var(--radius)" }} />)}
+        </div>
       ) : (
-        <SortableTable
-          columns={columns as Parameters<typeof SortableTable>[0]["columns"]}
-          data={cards as Record<string, unknown>[]}
-          onRowClick={(row) => router.push(`/cards/${(row as CardRow).id}`)}
-          emptyMessage={search || filterSet || filterRarity ? "No cards match your filters" : "No cards found"}
-        />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+          {cards.slice(0, 40).map((c) => {
+            const enriched = enrichCard(c as unknown as Record<string, unknown>);
+            const mp = c.prices[0]?.marketPrice ?? null;
+            return (
+              <div key={c.id} onClick={() => router.push(`/cards/${c.id}`)} style={{
+                background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 14,
+                cursor: "pointer", transition: "border-color 0.15s",
+              }}
+                onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
+                onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; }}>
+                <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
+                  <CardArt cardId={c.id} name={c.name} imageUrl={c.imageSmall} w={70} h={98} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>{c.set.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>#{c.cardNumber}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 700, color: "var(--text)" }}>{mp != null ? formatCents(mp) : "—"}</div>
+                  </div>
+                  <div style={{
+                    padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)",
+                    color: enriched.buyScore >= 80 ? "var(--pos)" : enriched.buyScore >= 60 ? "var(--accent)" : "var(--text-3)",
+                    border: `1px solid ${enriched.buyScore >= 80 ? "var(--pos)" : enriched.buyScore >= 60 ? "var(--accent)" : "var(--border)"}`,
+                  }}>{enriched.buyScore}</div>
+                </div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {enriched.signals.slice(0, 2).map((s: string) => <Pill key={s} label={s} />)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

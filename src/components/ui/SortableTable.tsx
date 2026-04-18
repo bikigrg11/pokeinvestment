@@ -58,11 +58,11 @@ function SortableTableInner<T extends Record<string, unknown>>({
     return (
       <div
         style={{
-          border: "1px solid #1e293b",
-          borderRadius: 8,
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius)",
           padding: "40px 20px",
           textAlign: "center",
-          color: "#475569",
+          color: "var(--text-3)",
           fontSize: 13,
         }}
       >
@@ -77,8 +77,8 @@ function SortableTableInner<T extends Record<string, unknown>>({
         overflowY: "auto",
         overflowX: "auto",
         maxHeight,
-        borderRadius: 8,
-        border: "1px solid #1e293b",
+        borderRadius: "var(--radius)",
+        border: "1px solid var(--border)",
       }}
     >
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -94,9 +94,9 @@ function SortableTableInner<T extends Record<string, unknown>>({
                   onClick={() => sortable && toggleSort(key)}
                   style={{
                     padding: "10px 14px",
-                    background: "#0c1222",
-                    borderBottom: "2px solid #1e293b",
-                    color: "#64748b",
+                    background: "var(--bg-panel)",
+                    borderBottom: "2px solid var(--border)",
+                    color: "var(--text-3)",
                     textAlign: col.align ?? "left",
                     cursor: sortable ? "pointer" : "default",
                     fontWeight: 600,
@@ -121,10 +121,10 @@ function SortableTableInner<T extends Record<string, unknown>>({
               onClick={() => onRowClick?.(row)}
               style={{
                 cursor: onRowClick ? "pointer" : "default",
-                borderBottom: "1px solid #1e293b22",
+                borderBottom: "1px solid color-mix(in srgb, var(--border) 30%, transparent)",
               }}
               onMouseOver={(e) => {
-                (e.currentTarget as HTMLTableRowElement).style.background = "#1e293b44";
+                (e.currentTarget as HTMLTableRowElement).style.background = "color-mix(in srgb, var(--accent) 5%, transparent)";
               }}
               onMouseOut={(e) => {
                 (e.currentTarget as HTMLTableRowElement).style.background = "transparent";
@@ -137,10 +137,10 @@ function SortableTableInner<T extends Record<string, unknown>>({
                     key={key}
                     style={{
                       padding: "10px 14px",
-                      color: col.color ? col.color(row) : "#cbd5e1",
+                      color: col.color ? col.color(row) : "var(--text-2)",
                       textAlign: col.align ?? "left",
                       fontFamily: col.mono
-                        ? "'JetBrains Mono', 'SF Mono', monospace"
+                        ? "var(--font-mono)"
                         : "inherit",
                       fontWeight: col.bold ? 600 : 400,
                       fontSize: 13,

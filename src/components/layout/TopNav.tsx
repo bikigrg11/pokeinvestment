@@ -8,7 +8,6 @@ import {
   Grid3X3,
   BookOpen,
   Package,
-  Briefcase,
   BarChart3,
   Award,
 } from "lucide-react";
@@ -19,7 +18,6 @@ const NAV_ITEMS = [
   { href: "/cards", label: "Cards", icon: Grid3X3 },
   { href: "/sets", label: "Sets", icon: BookOpen },
   { href: "/sealed", label: "Sealed", icon: Package },
-  { href: "/portfolio", label: "Portfolio", icon: Briefcase },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/grading", label: "Grading", icon: Award },
 ];

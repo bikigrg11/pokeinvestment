@@ -12,29 +12,31 @@ interface MiniSparklineProps {
 
 export const MiniSparkline = memo(function MiniSparkline({
   data,
-  color = "#22c55e",
+  color,
   height = 40,
   width = 100,
 }: MiniSparklineProps) {
   if (!data || data.length === 0) {
-    return <div style={{ width, height, opacity: 0.2, background: "#1e293b", borderRadius: 2 }} />;
+    return <div style={{ width, height, opacity: 0.2, background: "var(--bg-panel-2)", borderRadius: 2 }} />;
   }
 
-  const gradId = `spark-${color.replace("#", "")}`;
+  // Auto-detect color from trend if not provided
+  const effectiveColor = color ?? (data[data.length - 1].value >= data[0].value ? "var(--pos)" : "var(--neg)");
+  const gradId = `spark-${String(effectiveColor).replace(/[^a-z0-9]/gi, "")}`;
 
   return (
     <ResponsiveContainer width={width} height={height}>
       <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-            <stop offset="100%" stopColor={color} stopOpacity={0} />
+            <stop offset="0%" stopColor={effectiveColor} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={effectiveColor} stopOpacity={0} />
           </linearGradient>
         </defs>
         <Area
           type="monotone"
           dataKey="value"
-          stroke={color}
+          stroke={effectiveColor}
           fill={`url(#${gradId})`}
           strokeWidth={1.5}
           dot={false}

@@ -1,4 +1,4 @@
-# PokeInvest
+# PokeInvestment
 
 Pokémon card investment analytics platform. Think Bloomberg Terminal for Pokémon TCG cards.
 
@@ -6,10 +6,10 @@ Pokémon card investment analytics platform. Think Bloomberg Terminal for Pokém
 
 - **Frontend**: Next.js 15 (App Router), TypeScript strict, TailwindCSS, Recharts, React Query (TanStack Query v5)
 - **Backend**: Next.js API routes + tRPC
-- **Database**: PostgreSQL via Prisma ORM
+- **Database**: Neon PostgreSQL (serverless) via Prisma ORM
 - **Auth**: NextAuth.js v5 (credentials + OAuth)
 - **Data Sources**: pokemontcg.io API (free, card metadata + TCGPlayer prices), PokemonPriceTracker API (graded card prices, eBay data)
-- **Deployment**: AWS Amplify (frontend) + RDS PostgreSQL
+- **Deployment**: Vercel (frontend + API) + Neon PostgreSQL (serverless)
 
 ## Node Version
 
@@ -32,7 +32,8 @@ Add the `export` line to `~/.zshrc` or `~/.bash_profile` to make it permanent. N
 - `npx prisma migrate dev` — run database migrations
 - `npx prisma generate` — regenerate Prisma client
 - `npx prisma studio` — open database GUI
-- `npx prisma db seed` — seed database with card data
+- `npx prisma db seed` — seed database with card data (all 172 sets, ~20k cards)
+- `npx tsx prisma/seed-history.ts` — generate 52-week synthetic price history + IndexSnapshots
 
 ## Architecture
 
@@ -48,7 +49,8 @@ src/
 │   │   ├── sets/           # Set performance
 │   │   ├── sealed/         # Sealed product tracker
 │   │   ├── portfolio/      # Portfolio tracker
-│   │   └── analytics/      # Investment screener
+│   │   ├── analytics/      # Investment screener
+│   │   └── grading/        # Top 100 grading candidates (vintage + modern)
 │   ├── api/                # API routes
 │   │   └── trpc/           # tRPC router
 │   └── layout.tsx          # Root layout (dark theme)
@@ -70,14 +72,40 @@ src/
 └── prisma/
     ├── schema.prisma       # Database schema
     ├── migrations/         # Migration files
-    └── seed.ts             # Seed script
+    ├── seed.ts             # Seed script (all 172 sets, ~20k cards, upsert-safe)
+    └── seed-history.ts     # Generates 52-week GBM synthetic price history + IndexSnapshots
 ```
 
 ## Database
 
 See `prisma/schema.prisma` for the full schema. Key tables: cards, card_prices, sets, sealed_products, user_portfolios, portfolio_holdings, price_alerts.
 
-Prices are synced via a cron job that runs every 6 hours fetching from pokemontcg.io and storing historical snapshots in card_prices.
+**Current DB state (Neon production):** 172 sets, 20,237 cards, ~1,011,367 CardPrice rows (52-week history), 53 IndexSnapshot rows.
+
+Prices are synced via `prisma/seed-history.ts` which generates Geometric Brownian Motion (GBM) synthetic history per rarity tier. Re-running is safe — seed scripts use `upsert` throughout and are fully idempotent.
+
+## Deployment — Vercel + Neon
+
+Production URL: `https://pokeinvestment.vercel.app`
+
+**Prisma on Vercel requires `binaryTargets`** in `prisma/schema.prisma`:
+```prisma
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+```
+Without this, the Prisma client built on macOS will not run on Vercel's Linux environment and all tRPC queries will fail.
+
+**Environment variables must be set in Vercel dashboard** — `.env` is gitignored and never deployed. Required vars:
+```
+DATABASE_URL=postgresql://...    # Neon connection string
+NEXTAUTH_SECRET=...
+NEXTAUTH_URL=https://pokeinvestment.vercel.app
+POKEMON_TCG_API_KEY=...
+```
+
+**Neon free tier limit: 512 MB.** This is why `seed-history.ts` uses 52 weeks (not 104). Full 2-year history requires Neon Launch plan ($19/mo, 10 GB). If Neon auto-suspends after inactivity, simply retry the failed command after a moment.
 
 ## Code Patterns
 
@@ -103,9 +131,51 @@ DATABASE_URL="postgresql://bikigurung@localhost:5432/pokeinvest?schema=public"
 
 Do **not** use `postgres:password@...` — there is no `postgres` role on this machine.
 
-**Current DB state:** 172 sets, 5,761 cards, 8,650 price snapshots already seeded. Re-seeding is safe — the seed script uses `upsert` throughout and is fully idempotent.
-
 **`brew install` exit code 1** is a false alarm on this machine — it's a Docker CLI plugin permissions error during cleanup, not a PostgreSQL failure. Installation succeeds regardless.
+
+## Performance — React Query Cache
+
+`TRPCProvider.tsx` sets aggressive caching to prevent refetch on navigation:
+```typescript
+new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,       // 5 min before background refetch
+      gcTime: 30 * 60 * 1000,          // 30 min in memory after unmount
+      refetchOnWindowFocus: false,      // no refetch on tab focus
+      retry: 1,
+    },
+  },
+})
+```
+
+## Performance — Cards Page Filter Cache
+
+The cards page uses a **module-level cache** to persist filter state across navigations (back button, nav links):
+```typescript
+const _filterCache = { search: "", filterSet: "", filterRarity: "", filterSignal: "" };
+// State initialized from cache; cache updated on every state change
+const [search, setSearch] = useState(_filterCache.search);
+```
+
+Also uses 300ms debounced search to avoid re-querying on every keystroke:
+```typescript
+const [debouncedSearch, setDebouncedSearch] = useState(_filterCache.search);
+useEffect(() => {
+  _filterCache.search = search;
+  const t = setTimeout(() => setDebouncedSearch(search), 300);
+  return () => clearTimeout(t);
+}, [search]);
+```
+
+Same 300ms debounce pattern used in the portfolio AddCardPanel search query.
+
+## Performance — React.memo
+
+Key components are wrapped with `React.memo` to prevent unnecessary re-renders:
+- `SortableTable` — renamed inner fn to `SortableTableInner`, exported as `memo(SortableTableInner) as typeof SortableTableInner`
+- `MiniSparkline` — `export const MiniSparkline = memo(function MiniSparkline(...) { ... })`
+- `SignalBadge` — `export const SignalBadge = memo(function SignalBadge(...) { ... })`
 
 ## Gotchas
 
@@ -126,6 +196,7 @@ Do **not** use `postgres:password@...` — there is no `postgres` role on this m
 - `cards.list` tRPC procedure sorts by price **client-side** after fetching, because `CardPrice` is a related table and Prisma can't `ORDER BY` through an aggregated relation cheaply. If DB-level price sorting becomes a bottleneck, add a denormalised `latestMarketPriceC` column directly on `Card`.
 - `vitest.config.ts` must include the `@/*` path alias matching `tsconfig.json`, otherwise test files that import from `@/server/...` will fail to resolve.
 - `brew install` for `node@22` and `postgresql@16` both emit exit code 1 on this machine due to a Docker CLI plugin permissions issue during cleanup — the installs themselves succeed. Safe to ignore.
+- **TCGPlayer stale prices**: ~69 cards have TCGPlayer prices >5× their eBay sold prices (e.g. sm9-170 Latias & Latios-GX: TCGPlayer $2,495 vs eBay $83). Cannot fix source data — card detail page shows an amber price + warning banner when `marketPrice > ebayRawPrice * 5 && ebayRawPrice > 200`.
 
 ## UI Component Library
 
@@ -142,21 +213,34 @@ Shared components that already exist — use these instead of building from scra
 
 ## Historical Price Data
 
-**The DB only has one price snapshot per card (today's price).** This means:
-- Price history charts will have 1 data point — show a flat line / graceful empty state
-- ROI, CAGR, 24h/7d change cannot be computed — display "—"
-- Grading upside works if `psa10Price` is populated (it often isn't — most cards lack PSA data)
-- Volume field IS populated — liquidity sorting works
-
-To generate synthetic 24-month price history for all seeded cards, run:
+`prisma/seed-history.ts` generates **52 weeks** of synthetic price history per card using Geometric Brownian Motion (GBM), parameterized by rarity tier. Run:
 ```bash
 npx tsx prisma/seed-history.ts
 ```
-(Script doesn't exist yet — build it when historical charts are needed.)
+
+After running, the following features unlock:
+- Price history charts on card detail page (52 weekly data points)
+- Pokémon 250 Index chart (53 IndexSnapshot rows)
+- ROI / CAGR approximate values (still synthetic, not real market data)
+- Portfolio vs Index line chart on portfolio page
+
+**Storage note:** 52 weeks × 20,237 cards ≈ 1M rows. This fits Neon free tier (512 MB) with some headroom. Increasing WEEKS to 104 requires Neon Launch plan ($19/mo).
 
 ## Layout — Top Navigation
 
 The dashboard uses a **horizontal top nav** (not a sidebar), matching the prototype. Nav lives in `src/components/layout/TopNav.tsx`. The `(dashboard)/layout.tsx` renders `<TopNav />` above `<main>` — not the old Sidebar+Header.
+
+Nav items (in order):
+```typescript
+{ href: "/",          label: "Home",      icon: Home     }
+{ href: "/market",    label: "Market",    icon: Activity }
+{ href: "/cards",     label: "Cards",     icon: Grid3X3  }
+{ href: "/sets",      label: "Sets",      icon: BookOpen }
+{ href: "/sealed",    label: "Sealed",    icon: Package  }
+{ href: "/portfolio", label: "Portfolio", icon: Briefcase}
+{ href: "/analytics", label: "Analytics", icon: BarChart3}
+{ href: "/grading",   label: "Grading",   icon: Award    }
+```
 
 Prototype exact colors (not Tailwind defaults — use these hex values):
 - Page background: `#080d19`
@@ -178,20 +262,21 @@ Prototype exact colors (not Tailwind defaults — use these hex values):
 - `clr(n)` in `src/lib/utils/formatting.ts` returns hex color string for positive/negative/null values — use for inline `color:` props
 - All chart components must have `"use client"` — Recharts does not work in Server Components
 
-## Pages — Build Status
+## Pages — Final Build Status
 
-All core pages are built and compiling cleanly (`npm run build` passes):
+All routes are built and compiling cleanly (`npm run build` passes):
 
 | Route | File | Status |
 |-------|------|--------|
-| `/` | `(dashboard)/page.tsx` | ✅ Built — 4 MetricCards, Index chart, Series BarChart, 4 leaderboards with card images |
-| `/cards` | `(dashboard)/cards/page.tsx` | ✅ Built — search, set/rarity/signal filters, SortableTable + MiniSparkline |
-| `/cards/[id]` | `(dashboard)/cards/[id]/page.tsx` | ✅ Built — image, price header, 6-col metrics, range-toggle ComposedChart, price breakdown, investment score |
-| `/market` | `(dashboard)/market/page.tsx` | 🔲 Placeholder |
-| `/sets` | `(dashboard)/sets/page.tsx` | 🔲 Placeholder |
-| `/sealed` | `(dashboard)/sealed/page.tsx` | 🔲 Placeholder |
-| `/portfolio` | `(dashboard)/portfolio/page.tsx` | 🔲 Placeholder |
-| `/analytics` | `(dashboard)/analytics/page.tsx` | 🔲 Placeholder |
+| `/` | `(dashboard)/page.tsx` | ✅ 4 MetricCards, Index AreaChart, Series BarChart, 4 leaderboards (topByPrice, topByVolume, topGradingVintage, topGradingModern) |
+| `/market` | `(dashboard)/market/page.tsx` | ✅ 4 metrics, index AreaChart, series BarChart, Highest Price, Highest Volume, Best Grading Upside, Vintage Holos |
+| `/cards` | `(dashboard)/cards/page.tsx` | ✅ search, set/rarity/signal filters (module-level cache), SortableTable + MiniSparkline, 300ms debounce |
+| `/cards/[id]` | `(dashboard)/cards/[id]/page.tsx` | ✅ image, price header (amber warning if TCGPlayer >5× eBay), 6-col metrics, range-toggle ComposedChart, price breakdown, investment score |
+| `/sets` | `(dashboard)/sets/page.tsx` | ✅ logo table, bar chart, click-to-expand with card list |
+| `/sealed` | `(dashboard)/sealed/page.tsx` | ✅ metrics, sortable table, graceful empty state |
+| `/portfolio` | `(dashboard)/portfolio/page.tsx` | ✅ full CRUD, auth-gated, inline edit, portfolio vs index chart |
+| `/analytics` | `(dashboard)/analytics/page.tsx` | ✅ investment screener — filters, rarity/price charts, sortable table |
+| `/grading` | `(dashboard)/grading/page.tsx` | ✅ Top 100 grading candidates, era toggle (vintage pre-2003 / modern 2003+), stats row, color-coded upside table |
 
 ## tRPC Client Export
 
@@ -205,55 +290,36 @@ Never import `api` from that file — it doesn't exist.
 
 ## analytics.ts Router — Key Details
 
-- `analytics.dashboard` returns: `topByPrice`, `topByVolume`, `topGrading`, `vintageHolos`, `seriesPerformance`, `stats`
-- All four card arrays include `imageSmall` — use it for card thumbnails in leaderboards
+- `analytics.dashboard` returns: `topByPrice`, `topByVolume`, `topGradingVintage`, `topGradingModern`, `vintageHolos`, `seriesPerformance`, `stats`
+- **No longer returns `topGrading`** — replaced by `topGradingVintage` (pre-2003) and `topGradingModern` (2003+)
+- All card arrays include `imageSmall` — use it for card thumbnails in leaderboards
 - `stats.totalCards` and `stats.trackedCards` come back as JS `number` (already converted from BigInt inside the router)
-- `seriesPerformance[].avgMarketPrice` is a raw dollar float (not cents) — comes from `AVG(marketPrice)` where prices are stored in cents, so divide by 100 before displaying or pass as-is to chart
+- `seriesPerformance[].avgMarketPrice` is in **cents** — divide by 100 before displaying or charting
 - `BigInt` literals (`0n`) cause TypeScript errors when targeting below ES2020 — use `BigInt(0)` instead
+- `analytics.gradingLeaderboard` — returns `{ vintage: GradingRow[], modern: GradingRow[] }` top 100 per era, used by `/grading` page
 
-## sets.list Return Shape
+## Grading Page — analytics.gradingLeaderboard
 
-`sets.list` returns a **flat array** of set objects, not `{ sets: [] }`. Access directly:
 ```typescript
-const { data: sets } = trpc.sets.list.useQuery({});
-const setList = sets ?? [];  // NOT sets?.sets
+analytics.gradingLeaderboard.useQuery()
+// Returns: { vintage: GradingRow[], modern: GradingRow[] }
+// GradingRow: { id, name, setName, rarity, imageSmall, rawPrice, psa10Price, marketPrice, gradingUpside }
+// gradingUpside = psa10Price / rawPrice (ratio, e.g. 15.3 means 15.3×)
+// vintage = sets with releaseDate < 2003-01-01
+// modern = sets with releaseDate >= 2003-01-01
 ```
 
-## Card Schema Field Names
-
-Use the exact Prisma field names — common mismatch:
-- `card.cardNumber` (not `card.number`)
-- `card.imageSmall` (not `card.image`)
-- `card.tcgplayerUrl` (can be null)
-- `card.supertype` (always present — "Pokémon", "Trainer", "Energy")
-
-## Image Domains
-
-`images.pokemontcg.io` is already configured in `next.config.ts` `remotePatterns`. No changes needed to use Next.js `<Image>` with card art URLs.
+Color coding for `gradingUpside`: gold (`#fbbf24`) ≥10×, green (`#22c55e`) ≥5×, muted (`#94a3b8`) otherwise.
 
 ## Dashboard Leaderboard Categories
 
-The prototype shows: Highest ROI, Biggest Movers, Most Liquid, Top Grading Upside.
-With only one price snapshot in the DB, ROI and movers can't be computed. The analytics router instead returns:
+The dashboard shows 4 leaderboard panels:
 - `topByPrice` → "Highest Market Price"
 - `topByVolume` → "Most Liquid Cards"
-- `vintageHolos` → "Vintage Holos (pre-2005)"
-- `topGrading` → "Top Grading Upside"
+- `topGradingVintage` → "Vintage Grading Upside (pre-2003)"
+- `topGradingModern` → "Modern Grading Upside (2003+)"
 
-Once `seed-history.ts` is built and run, ROI/movers can be added to the analytics router and swapped in.
-
-## Pages — Final Build Status
-
-| Route | Status |
-|-------|--------|
-| `/` | ✅ Dashboard |
-| `/cards` | ✅ Card database |
-| `/cards/[id]` | ✅ Card detail |
-| `/sets` | ✅ Set performance |
-| `/sealed` | ✅ Sealed products |
-| `/portfolio` | ✅ Portfolio tracker — full CRUD, auth-gated |
-| `/market` | 🔲 Placeholder |
-| `/analytics` | 🔲 Placeholder |
+Value formatter for grading panels: `(r.psa10Price / r.marketPrice).toFixed(1) + "×"` — shows multiplier.
 
 ## Portfolio Router — Full API
 
@@ -356,19 +422,6 @@ Fix by wrapping the cast in its own `useMemo`:
 const items = useMemo(() => (data ?? []) as Foo[], [data]);
 ```
 
-## Pages — Final Build Status
-
-| Route | Status |
-|-------|--------|
-| `/` | ✅ Dashboard — metrics, index chart, series chart, 4 leaderboards with card images |
-| `/cards` | ✅ Card database — search, filters, SortableTable + MiniSparkline |
-| `/cards/[id]` | ✅ Card detail — image, price, range-toggle chart, metrics, investment score |
-| `/sets` | ✅ Set performance — logo table, bar chart, click-to-expand with card list |
-| `/sealed` | ✅ Sealed products — metrics, sortable table, empty state |
-| `/market` | 🔲 Placeholder |
-| `/portfolio` | 🔲 Placeholder |
-| `/analytics` | 🔲 Placeholder |
-
 ## sets.performance Procedure
 
 Added `sets.performance` to `src/server/routers/sets.ts` — raw SQL using `DISTINCT ON` to get avg market price per set, returns top 20 by avg price. Return shape:
@@ -415,30 +468,73 @@ The Sets page uses a click-to-toggle expand pattern — clicking a row sets `sel
 ```
 Card fields available in detail panel: `id`, `name`, `cardNumber`, `rarity`, `prices[0].marketPrice`, `prices[0].psa10Price`.
 
+## sets.list Return Shape
+
+`sets.list` returns a **flat array** of set objects, not `{ sets: [] }`. Access directly:
+```typescript
+const { data: sets } = trpc.sets.list.useQuery({});
+const setList = sets ?? [];  // NOT sets?.sets
+```
+
+## Card Schema Field Names
+
+Use the exact Prisma field names — common mismatch:
+- `card.cardNumber` (not `card.number`)
+- `card.imageSmall` (not `card.image`)
+- `card.tcgplayerUrl` (can be null)
+- `card.supertype` (always present — "Pokémon", "Trainer", "Energy")
+
+## Image Domains
+
+`images.pokemontcg.io` is already configured in `next.config.ts` `remotePatterns`. No changes needed to use Next.js `<Image>` with card art URLs.
+
 ## Environment Variables
 
 ```
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://...           # Neon connection string
 NEXTAUTH_SECRET=...
-NEXTAUTH_URL=http://localhost:3000
-POKEMON_TCG_API_KEY=...           # from pokemontcg.io (free)
-PRICE_TRACKER_API_KEY=...         # from pokemonpricetracker.com (optional, paid)
+NEXTAUTH_URL=https://pokeinvestment.vercel.app   # production; http://localhost:3000 for dev
+POKEMON_TCG_API_KEY=...                 # from pokemontcg.io (free)
+PRICE_TRACKER_API_KEY=...               # from pokemonpricetracker.com (optional, paid)
 ```
 
 Never commit .env files. Use .env.example as template.
 
-## Pages — Final Build Status (all routes)
+## Market Page Data Sources
 
-| Route | Status |
-|-------|--------|
-| `/` | ✅ Dashboard — metrics, index chart, series chart, 4 leaderboards with card images |
-| `/market` | ✅ Market overview — 4 metrics, index AreaChart, series BarChart, 4 leaderboard tables |
-| `/cards` | ✅ Card database — search, filters, SortableTable + MiniSparkline |
-| `/cards/[id]` | ✅ Card detail — image, price, range-toggle chart, metrics, investment score |
-| `/sets` | ✅ Set performance — logo table, bar chart, click-to-expand with card list |
-| `/sealed` | ✅ Sealed products — metrics, sortable table, empty state |
-| `/portfolio` | ✅ Portfolio tracker — full CRUD, auth-gated, inline edit, charts |
-| `/analytics` | ✅ Investment screener — filters, rarity/price charts, sortable table |
+`/market` uses two tRPC queries:
+- `trpc.analytics.dashboard` — topByPrice, topByVolume, topGradingVintage, topGradingModern, vintageHolos, seriesPerformance, stats
+- `trpc.analytics.indexHistory` — IndexSnapshot rows ordered by date asc
+
+`seriesPerformance[].avgMarketPrice` is in **cents** — divide by 100 before displaying as dollars.
+
+## seriesPerformance Chart — Cents Bug
+
+`analytics.dashboard.seriesPerformance[].avgMarketPrice` is in **cents** (raw `AVG()` from the DB). The dashboard BarChart must convert before passing to Recharts:
+```typescript
+// WRONG — passes 45203 to chart, YAxis shows 45,203 instead of $452
+avgMarketPrice: r.avgMarketPrice
+
+// CORRECT
+avgMarketPrice: +(r.avgMarketPrice / 100).toFixed(2)
+```
+Also add `tickFormatter={(v) => \`$${v}\`}` to the YAxis. The market page already does this correctly.
+
+## Card Detail — TCGPlayer Price Warning
+
+`/cards/[id]` detects stale TCGPlayer listings:
+```typescript
+const ebayRawPrice = card.prices[0]?.rawPrice ?? null;
+const priceIsSuspicious =
+  ebayRawPrice != null && marketPrice != null && marketPrice > ebayRawPrice * 5 && ebayRawPrice > 200;
+```
+When `priceIsSuspicious` is true: price shows in amber (`#fbbf24`), secondary "eBay: $XX" line appears below, and a warning banner explains the discrepancy. This affects ~69 cards in the current dataset.
+
+`cards.byId` price history query uses a **2-year cutoff**:
+```typescript
+const cutoff = new Date();
+cutoff.setFullYear(cutoff.getFullYear() - 2);
+```
 
 ## Responsive Grid CSS Classes
 
@@ -552,26 +648,6 @@ c.signals.includes(filters.signal as never)
 - This avoids a round-trip per filter change. 500 cards is well within JSON budget.
 - `cards = useMemo(() => allCards ?? [], [allCards])` — must be in its own `useMemo`, not an inline `??` expression, to avoid breaking downstream `useMemo` dependencies.
 
-## Market Page Data Sources
-
-`/market` uses two tRPC queries:
-- `trpc.analytics.dashboard` — topByPrice, topByVolume, topGrading, vintageHolos, seriesPerformance, stats
-- `trpc.analytics.indexHistory` — IndexSnapshot rows ordered by date asc
-
-`seriesPerformance[].avgMarketPrice` is in **cents** — divide by 100 before displaying as dollars.
-
-## seriesPerformance Chart — Cents Bug
-
-`analytics.dashboard.seriesPerformance[].avgMarketPrice` is in **cents** (raw `AVG()` from the DB). The dashboard BarChart must convert before passing to Recharts:
-```typescript
-// WRONG — passes 45203 to chart, YAxis shows 45,203 instead of $452
-avgMarketPrice: r.avgMarketPrice
-
-// CORRECT
-avgMarketPrice: +(r.avgMarketPrice / 100).toFixed(2)
-```
-Also add `tickFormatter={(v) => \`$${v}\`}` to the YAxis. The market page already does this correctly.
-
 ## React Fragment Key in Table Rows
 
 When mapping over rows and conditionally inserting a sibling row (e.g. an inline edit row), you need a **keyed Fragment** — not a bare `<>`:
@@ -591,27 +667,26 @@ Using `<>` with `key` on the inner `<tr>` instead causes React key warnings and 
 
 On the card detail page, the "Add to Portfolio" button navigates to `/portfolio` via `router.push("/portfolio")` — it does NOT attempt to pre-populate the form or pass state via query params. The user searches for the card again in the AddCardPanel. This is intentional: the AddCardPanel has its own search with price pre-fill from the latest market price.
 
-## Data Limitations — What Works vs What Needs seed-history.ts
+## Data Limitations — What Works vs What Needs More Data
 
 | Feature | Status | Reason |
 |---------|--------|--------|
 | Rarity/CollectorFavorite signals | ✅ Works | Based on rarity + release date, no history needed |
 | Price filters in screener | ✅ Works | Uses current snapshot |
+| Price history charts | ✅ Works | 52-week GBM synthetic data from seed-history.ts |
+| Index chart | ✅ Works | 53 IndexSnapshot rows generated by seed-history.ts |
+| Grading Upside (page + leaderboards) | ✅ Works | PSA10 prices synced via sync-ebay |
 | Volume filter (> 0) | ❌ Returns 0 results | No volume data in DB |
-| Grading Upside filter | ❌ Returns 0 results | No PSA/raw price data |
-| HighLiquidity / Momentum / etc signals | ❌ Never fires | Needs price history or volume data |
+| HighLiquidity / Momentum signals | ❌ Never fires | Needs real price history or volume data |
 | BlueChip signal | ❌ Never fires | Needs `releasePriceC` (not seeded) |
-| Index/Portfolio line charts | ❌ Empty state | No `IndexSnapshot` rows |
-| Price history charts | ❌ 1-point flat | Only one `CardPrice` per card |
-
-Run `npx tsx prisma/seed-history.ts` (script not yet built) to generate synthetic history and unlock the remaining features.
+| ROI / CAGR (real) | ❌ Synthetic only | Only GBM-generated prices, not real market data |
 
 ## Smoke Test Checklist
 
 Before shipping, verify each route returns 200 and tRPC endpoints respond:
 ```bash
-for path in "/" "/cards" "/market" "/sets" "/sealed" "/portfolio" "/analytics" "/login"; do
+for path in "/" "/cards" "/market" "/sets" "/sealed" "/portfolio" "/analytics" "/grading" "/login"; do
   echo "$path → $(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3000$path")"
 done
 ```
-Key tRPC endpoints to spot-check: `analytics.dashboard`, `analytics.screener`, `cards.list`, `sets.performance`, `sealed.list`, `analytics.indexHistory`.
+Key tRPC endpoints to spot-check: `analytics.dashboard`, `analytics.screener`, `analytics.gradingLeaderboard`, `cards.list`, `sets.performance`, `sealed.list`, `analytics.indexHistory`.

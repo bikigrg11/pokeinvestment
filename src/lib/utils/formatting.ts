@@ -40,8 +40,8 @@ export const pctColor = (n: number | null | undefined): string => {
   return n > 0 ? "text-green-400" : n < 0 ? "text-red-400" : "text-slate-400";
 };
 
-/** Returns the hex color for a positive/negative/neutral value. */
+/** Returns the CSS variable for a positive/negative/neutral value. */
 export const clr = (n: number | null | undefined): string => {
-  if (n == null) return "#94a3b8";
-  return n > 0 ? "#22c55e" : n < 0 ? "#ef4444" : "#94a3b8";
+  if (n == null) return "var(--text-3)";
+  return n > 0 ? "var(--pos)" : n < 0 ? "var(--neg)" : "var(--text-3)";
 };

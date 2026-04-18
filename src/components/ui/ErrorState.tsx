@@ -19,11 +19,11 @@ export function ErrorState({ message = "Failed to load data", onRetry }: ErrorSt
         textAlign: "center",
       }}
     >
-      <AlertTriangle size={32} color="#ef4444" style={{ marginBottom: 12 }} />
-      <p style={{ color: "#ef4444", fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>
+      <AlertTriangle size={32} color="var(--neg)" style={{ marginBottom: 12 }} />
+      <p style={{ color: "var(--neg)", fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>
         {message}
       </p>
-      <p style={{ color: "#475569", fontSize: 12, margin: "0 0 16px" }}>
+      <p style={{ color: "var(--text-3)", fontSize: 12, margin: "0 0 16px" }}>
         Check your connection or try again
       </p>
       {onRetry && (
@@ -31,10 +31,10 @@ export function ErrorState({ message = "Failed to load data", onRetry }: ErrorSt
           onClick={onRetry}
           style={{
             padding: "7px 18px",
-            borderRadius: 6,
-            border: "1px solid #334155",
+            borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
             background: "transparent",
-            color: "#94a3b8",
+            color: "var(--text-2)",
             fontSize: 12,
             fontWeight: 600,
             cursor: "pointer",
