@@ -39,7 +39,7 @@ async function main() {
 
   // 1. Fetch top-N cards by current market price
   const topCards = await db.$queryRaw<
-    Array<{ id: string; name: string; setName: string; marketPrice: number; variant: string; date: Date }>
+    Array<{ id: string; name: string; cardNumber: string; setName: string; marketPrice: number; variant: string; date: Date }>
   >`
     WITH latest AS (
       SELECT DISTINCT ON ("cardId")
@@ -49,7 +49,7 @@ async function main() {
       ORDER BY "cardId", date DESC
     )
     SELECT
-      c.id, c.name,
+      c.id, c.name, c."cardNumber",
       s.name AS "setName",
       l."marketPrice",
       l.variant,
@@ -72,18 +72,18 @@ async function main() {
     process.stdout.write(`[${pct}%] ${card.name} — `);
 
     try {
-      // PSA 10 price — no condition filter (graded slabs listed inconsistently by sellers)
-      const psa10Query = buildGradedQuery(card.name, card.setName, "PSA", "10");
+      // PSA 10 price — include card number to target specific art variant
+      const psa10Query = buildGradedQuery(card.name, card.setName, "PSA", "10", card.cardNumber);
       const psa10Result = await searchSoldListings(psa10Query, 30);
       await delay(DELAY_MS);
 
       // PSA 9 price
-      const psa9Query = buildGradedQuery(card.name, card.setName, "PSA", "9");
+      const psa9Query = buildGradedQuery(card.name, card.setName, "PSA", "9", card.cardNumber);
       const psa9Result = await searchSoldListings(psa9Query, 20);
       await delay(DELAY_MS);
 
       // Raw price
-      const rawQuery = buildRawQuery(card.name, card.setName);
+      const rawQuery = buildRawQuery(card.name, card.setName, card.cardNumber);
       const rawResult = await searchSoldListings(rawQuery, 30);
       await delay(DELAY_MS);
 

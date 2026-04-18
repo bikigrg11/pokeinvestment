@@ -219,18 +219,21 @@ export function buildGradedQuery(
   cardName: string,
   setName: string,
   gradeCompany = "PSA",
-  grade = "10"
+  grade = "10",
+  cardNumber?: string
 ): string {
   const name = cardName.replace(/\s+(V|VMAX|VSTAR|ex|GX|EX)$/i, "").slice(0, 30);
   const disambig = setDisambiguator(setName);
   const setContext = disambig ? ` ${disambig}` : "";
-  return `${name}${setContext} ${gradeCompany} ${grade}`;
+  const numContext = cardNumber ? ` ${cardNumber}` : "";
+  return `${name}${setContext}${numContext} ${gradeCompany} ${grade} -chinese -japanese -korean`;
 }
 
 /**
  * Build a search query for a raw (ungraded) card.
  */
-export function buildRawQuery(cardName: string, setName: string): string {
+export function buildRawQuery(cardName: string, setName: string, cardNumber?: string): string {
   const name = cardName.replace(/\s+(V|VMAX|VSTAR|ex|GX|EX)$/i, "").slice(0, 30);
-  return `${name} ${setName} raw NM`;
+  const numContext = cardNumber ? ` ${cardNumber}` : "";
+  return `${name} ${setName}${numContext} raw NM -chinese -japanese -korean`;
 }
