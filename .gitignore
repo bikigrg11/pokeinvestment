@@ -30,3 +30,6 @@ npm-debug.log*
 
 # Type checking cache
 *.tsbuildinfo
+
+# Design handoff assets
+design_handoff_pokeinvest_redesign/
