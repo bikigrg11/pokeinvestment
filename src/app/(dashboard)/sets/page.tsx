@@ -30,14 +30,17 @@ type SetDetailCard = {
   prices: Array<{ marketPrice: number | null; psa10Price: number | null }>;
 };
 
+const SET_CARD_LIMIT = 50;
+
 export default function SetsPage() {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [cardPage, setCardPage] = useState(1);
 
   const { data: sets, isLoading, isError, refetch } = trpc.sets.list.useQuery({});
   const { data: perf } = trpc.sets.performance.useQuery();
   const { data: detail } = trpc.sets.byId.useQuery(
-    { id: selectedId!, cardLimit: 100 },
+    { id: selectedId!, cardLimit: SET_CARD_LIMIT, cardPage },
     { enabled: !!selectedId }
   );
 
@@ -161,7 +164,7 @@ export default function SetsPage() {
                   <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{formatCents(s.avgMarketPrice)}</div>
                   <div style={{ fontSize: 11, color: "var(--text-3)" }}>avg card</div>
                 </div>
-                <button onClick={() => setSelectedId(s.id)} style={{ padding: "6px 12px", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "transparent", color: "var(--text-2)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Browse →</button>
+                <button onClick={() => { setSelectedId(s.id); setCardPage(1); }} style={{ padding: "6px 12px", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "transparent", color: "var(--text-2)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Browse →</button>
               </div>
             ))}
           </div>
@@ -179,7 +182,7 @@ export default function SetsPage() {
           data={setRows as Record<string, unknown>[]}
           onRowClick={(row) => {
             const r = row as SetRow;
-            setSelectedId((prev) => (prev === r.id ? null : r.id));
+            setSelectedId((prev) => (prev === r.id ? null : r.id)); setCardPage(1);
           }}
         />
       )}
@@ -207,12 +210,43 @@ export default function SetsPage() {
           </div>
 
           {detail && detail.cards.length > 0 ? (
-            <SortableTable
-              columns={detailCardColumns as Parameters<typeof SortableTable>[0]["columns"]}
-              data={detail.cards as unknown as Record<string, unknown>[]}
-              onRowClick={(row) => router.push(`/cards/${(row as SetDetailCard).id}`)}
-              maxHeight={300}
-            />
+            <>
+              <SortableTable
+                columns={detailCardColumns as Parameters<typeof SortableTable>[0]["columns"]}
+                data={detail.cards as unknown as Record<string, unknown>[]}
+                onRowClick={(row) => router.push(`/cards/${(row as SetDetailCard).id}`)}
+                maxHeight={400}
+              />
+              {detail.total > SET_CARD_LIMIT && (
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, paddingTop: 12 }}>
+                  <button
+                    disabled={cardPage <= 1}
+                    onClick={() => setCardPage((p) => Math.max(1, p - 1))}
+                    style={{
+                      padding: "6px 14px", borderRadius: "var(--radius)", border: "1px solid var(--border)",
+                      background: cardPage <= 1 ? "var(--bg-panel)" : "var(--bg-card)", color: cardPage <= 1 ? "var(--text-3)" : "var(--text)",
+                      cursor: cardPage <= 1 ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600,
+                    }}
+                  >
+                    ← Prev
+                  </button>
+                  <span style={{ fontSize: 12, color: "var(--text-2)", fontFamily: "var(--font-mono)" }}>
+                    Page {cardPage} of {Math.ceil(detail.total / SET_CARD_LIMIT)}
+                  </span>
+                  <button
+                    disabled={cardPage >= Math.ceil(detail.total / SET_CARD_LIMIT)}
+                    onClick={() => setCardPage((p) => p + 1)}
+                    style={{
+                      padding: "6px 14px", borderRadius: "var(--radius)", border: "1px solid var(--border)",
+                      background: cardPage >= Math.ceil(detail.total / SET_CARD_LIMIT) ? "var(--bg-panel)" : "var(--bg-card)", color: cardPage >= Math.ceil(detail.total / SET_CARD_LIMIT) ? "var(--text-3)" : "var(--text)",
+                      cursor: cardPage >= Math.ceil(detail.total / SET_CARD_LIMIT) ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600,
+                    }}
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <div style={{ color: "var(--text-3)", fontSize: 13, padding: "20px 0" }}>
               {detail ? "No cards with price data in this set." : "Loading cards..."}

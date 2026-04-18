@@ -506,7 +506,7 @@ export default function DashboardPage() {
                     borderBottom: i < arr.length - 1 ? "1px solid var(--border)" : "none",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
                     <Pill label={p.tag} color={pulseTagColor(p.tag)} />
                     {p.pctChange !== 0 && (
                       <span

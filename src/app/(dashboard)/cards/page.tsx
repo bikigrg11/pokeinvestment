@@ -20,12 +20,15 @@ const SIGNALS = [
   "BlueChip",
 ];
 
+const PAGE_SIZE = 40;
+
 // Module-level cache — survives React re-mounts and page navigations
 const _filterCache = {
   search: "",
   filterSet: "",
   filterRarity: "",
   filterSignal: "",
+  page: 1,
 };
 
 function enrichCard(c: Record<string, unknown>) {
@@ -53,23 +56,27 @@ export default function CardsPage() {
   const [filterSet, setFilterSet] = useState(_filterCache.filterSet);
   const [filterRarity, setFilterRarity] = useState(_filterCache.filterRarity);
   const [filterSignal, setFilterSignal] = useState(_filterCache.filterSignal);
+  const [page, setPage] = useState(_filterCache.page);
 
   const [debouncedSearch, setDebouncedSearch] = useState(_filterCache.search);
   useEffect(() => {
     _filterCache.search = search;
+    setPage(1); _filterCache.page = 1;
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { _filterCache.filterSet = filterSet; }, [filterSet]);
-  useEffect(() => { _filterCache.filterRarity = filterRarity; }, [filterRarity]);
-  useEffect(() => { _filterCache.filterSignal = filterSignal; }, [filterSignal]);
+  useEffect(() => { _filterCache.filterSet = filterSet; setPage(1); _filterCache.page = 1; }, [filterSet]);
+  useEffect(() => { _filterCache.filterRarity = filterRarity; setPage(1); _filterCache.page = 1; }, [filterRarity]);
+  useEffect(() => { _filterCache.filterSignal = filterSignal; setPage(1); _filterCache.page = 1; }, [filterSignal]);
+  useEffect(() => { _filterCache.page = page; }, [page]);
 
   const { data, isLoading, isError, refetch } = api.cards.list.useQuery({
     q: debouncedSearch || undefined,
     setId: filterSet || undefined,
     rarity: filterRarity || undefined,
-    limit: 200,
+    page,
+    limit: PAGE_SIZE,
   });
 
   const { data: setsData } = api.sets.list.useQuery({});
@@ -94,7 +101,7 @@ export default function CardsPage() {
       <div>
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: "var(--display-weight)" as unknown as number, color: "var(--text)", margin: 0 }}>Card Database</h1>
         <p style={{ color: "var(--text-3)", fontSize: 14, margin: "4px 0 0" }}>
-          {isLoading ? "Loading..." : `${cards.length.toLocaleString()} cards tracked. Click any to run full analysis.`}
+          {isLoading ? "Loading..." : `${(data?.total ?? 0).toLocaleString()} cards tracked. Click any to run full analysis.`}
         </p>
       </div>
 
@@ -126,7 +133,7 @@ export default function CardsPage() {
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-          {cards.slice(0, 40).map((c) => {
+          {cards.map((c) => {
             const enriched = enrichCard(c as unknown as Record<string, unknown>);
             const mp = c.prices[0]?.marketPrice ?? null;
             return (
@@ -160,6 +167,37 @@ export default function CardsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!isLoading && !isError && data && data.total > PAGE_SIZE && (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, paddingTop: 8 }}>
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            style={{
+              padding: "8px 18px", borderRadius: "var(--radius)", border: "1px solid var(--border)",
+              background: page <= 1 ? "var(--bg-panel)" : "var(--bg-card)", color: page <= 1 ? "var(--text-3)" : "var(--text)",
+              cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600,
+            }}
+          >
+            ← Prev
+          </button>
+          <span style={{ fontSize: 13, color: "var(--text-2)", fontFamily: "var(--font-mono)" }}>
+            Page {page} of {Math.ceil(data.total / PAGE_SIZE)}
+          </span>
+          <button
+            disabled={page >= Math.ceil(data.total / PAGE_SIZE)}
+            onClick={() => setPage((p) => p + 1)}
+            style={{
+              padding: "8px 18px", borderRadius: "var(--radius)", border: "1px solid var(--border)",
+              background: page >= Math.ceil(data.total / PAGE_SIZE) ? "var(--bg-panel)" : "var(--bg-card)", color: page >= Math.ceil(data.total / PAGE_SIZE) ? "var(--text-3)" : "var(--text)",
+              cursor: page >= Math.ceil(data.total / PAGE_SIZE) ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600,
+            }}
+          >
+            Next →
+          </button>
         </div>
       )}
     </div>
