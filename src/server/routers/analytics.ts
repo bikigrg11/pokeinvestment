@@ -266,6 +266,27 @@ export const analyticsRouter = createTRPCRouter({
     return ctx.db.indexSnapshot.findMany({ orderBy: { date: "asc" }, take: 365 });
   }),
 
+  /** Top 100 cards for the market page table — all tabs draw from this. */
+  marketCards: publicProcedure.query(async ({ ctx }) => {
+    return ctx.db.$queryRaw<CardRow[]>`
+      SELECT
+        c.id, c.name, c.rarity, c."imageSmall",
+        s.name        AS "setName",
+        s.series,
+        s."releaseDate",
+        l."marketPrice",
+        l.volume,
+        l."psa10Price",
+        l."rawPrice",
+        l.variant
+      FROM "LatestCardPrice" l
+      JOIN "Card" c ON c.id = l."cardId"
+      JOIN "Set"  s ON s.id = c."setId"
+      ORDER BY l."marketPrice" DESC NULLS LAST
+      LIMIT 100
+    `;
+  }),
+
   /** Top 100 grading upside candidates, split by era. */
   gradingLeaderboard: publicProcedure.query(async ({ ctx }) => {
     type GradingRow = {

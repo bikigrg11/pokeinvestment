@@ -67,6 +67,7 @@ export default function MarketPage() {
 
   const { data: dashboard, isLoading, isError, refetch } = trpc.analytics.dashboard.useQuery();
   const { data: indexHistory } = trpc.analytics.indexHistory.useQuery();
+  const { data: marketCards } = trpc.analytics.marketCards.useQuery();
 
   const indexData = useMemo(
     () => (indexHistory ?? []).map((s) => ({
@@ -80,20 +81,11 @@ export default function MarketPage() {
   const indexStart = indexData.length > 0 ? indexData[0].value : 0;
   const totalRet = indexStart > 0 ? ((indexVal - indexStart) / indexStart) * 100 : 0;
 
-  // Combine all card sources and enrich
+  // Use dedicated market cards query for the table
   const allCards = useMemo(() => {
-    if (!dashboard) return [];
-    const combined = [
-      ...(dashboard.topByPrice ?? []),
-      ...(dashboard.topByVolume ?? []),
-      ...(dashboard.topGradingVintage ?? []),
-      ...(dashboard.topGradingModern ?? []),
-      ...(dashboard.vintageHolos ?? []),
-    ];
-    const unique = new Map<string, Record<string, unknown>>();
-    combined.forEach((c) => unique.set(c.id, c as Record<string, unknown>));
-    return [...unique.values()].map(enrichCard);
-  }, [dashboard]);
+    if (!marketCards) return [];
+    return (marketCards as Record<string, unknown>[]).map(enrichCard);
+  }, [marketCards]);
 
   const data = useMemo(() => {
     const list = [...allCards];
