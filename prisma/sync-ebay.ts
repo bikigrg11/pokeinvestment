@@ -72,35 +72,34 @@ async function main() {
     process.stdout.write(`[${pct}%] ${card.name} — `);
 
     try {
-      // PSA 10 price — include card number to target specific art variant
+      // Raw price = TCGPlayer marketPrice (already in DB, more reliable than eBay raw search)
+      const rawPrice = card.marketPrice;
+
+      // PSA 10 price from eBay — include card number to target specific art variant
       const psa10Query = buildGradedQuery(card.name, card.setName, "PSA", "10", card.cardNumber);
       const psa10Result = await searchSoldListings(psa10Query, 30);
       await delay(DELAY_MS);
 
-      // PSA 9 price
+      // PSA 9 price from eBay
       const psa9Query = buildGradedQuery(card.name, card.setName, "PSA", "9", card.cardNumber);
       const psa9Result = await searchSoldListings(psa9Query, 20);
       await delay(DELAY_MS);
 
-      // Raw price
-      const rawQuery = buildRawQuery(card.name, card.setName, card.cardNumber);
-      const rawResult = await searchSoldListings(rawQuery, 30);
-      await delay(DELAY_MS);
-
-      const psa10Price = psa10Result.medianPrice;
-      const psa9Price  = psa9Result.medianPrice;
-      const rawPrice   = rawResult.medianPrice;
-      const volume     = psa10Result.saleCount + rawResult.saleCount;
+      // Graded price must be higher than raw — if not, it's a bad match, discard it
+      const psa10Price = psa10Result.medianPrice != null && psa10Result.medianPrice > rawPrice
+        ? psa10Result.medianPrice : null;
+      const psa9Price = psa9Result.medianPrice != null && psa9Result.medianPrice > rawPrice
+        ? psa9Result.medianPrice : null;
+      const volume = psa10Result.saleCount;
 
       process.stdout.write(
+        `raw=$${(rawPrice / 100).toFixed(0)} (TCG)  ` +
         `PSA10=${psa10Price ? `$${(psa10Price / 100).toFixed(0)}` : "—"}  ` +
         `PSA9=${psa9Price ? `$${(psa9Price / 100).toFixed(0)}` : "—"}  ` +
-        `raw=${rawPrice ? `$${(rawPrice / 100).toFixed(0)}` : "—"}  ` +
         `vol=${volume}\n`
       );
 
       if (!DRY_RUN) {
-        // Round date to today to match the unique constraint
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
@@ -109,9 +108,9 @@ async function main() {
             cardId_date_variant: { cardId: card.id, date: today, variant: card.variant },
           },
           update: {
+            rawPrice:   rawPrice,
             psa10Price: psa10Price ?? undefined,
             psa9Price:  psa9Price  ?? undefined,
-            rawPrice:   rawPrice   ?? undefined,
             volume:     volume > 0 ? volume : undefined,
           },
           create: {
@@ -119,9 +118,9 @@ async function main() {
             date: today,
             variant: card.variant,
             marketPrice: card.marketPrice,
+            rawPrice:   rawPrice,
             psa10Price: psa10Price ?? undefined,
             psa9Price:  psa9Price  ?? undefined,
-            rawPrice:   rawPrice   ?? undefined,
             volume:     volume > 0 ? volume : undefined,
           },
         });
