@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { MobileHeader } from "@/components/layout/MobileHeader";
 import { MobileNav } from "@/components/layout/MobileNav";
 
 export default function DashboardLayout({
@@ -11,6 +12,7 @@ export default function DashboardLayout({
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-page)" }}>
       <Sidebar />
       <div style={{ flex: 1, minWidth: 0 }}>
+        <MobileHeader />
         <Header />
         <main
           className="main-content"

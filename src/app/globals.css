@@ -164,14 +164,21 @@ body {
   }
 }
 
-/* Header hidden on mobile */
+/* Header: desktop version hidden on mobile, mobile version hidden on desktop */
 .desktop-header {
   display: none;
+}
+
+.mobile-header {
+  display: block;
 }
 
 @media (min-width: 768px) {
   .desktop-header {
     display: flex;
+  }
+  .mobile-header {
+    display: none;
   }
 }
 

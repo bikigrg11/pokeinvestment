@@ -2,6 +2,10 @@
 
 Pokémon card investment analytics platform. Think Bloomberg Terminal for Pokémon TCG cards.
 
+## Git Commits
+
+**Never add `Co-Authored-By: Claude` or any Claude attribution to commit messages.** Just write a normal commit message.
+
 ## Tech Stack
 
 - **Frontend**: Next.js 15 (App Router), TypeScript strict, TailwindCSS, Recharts, React Query (TanStack Query v5)
