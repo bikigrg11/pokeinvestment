@@ -41,13 +41,13 @@ function enrichCard(c: Record<string, unknown>): EnrichedCard {
   const releaseDate = c.releaseDate ? new Date(c.releaseDate as string) : null;
   const year = releaseDate?.getFullYear() ?? 2020;
 
-  const gradeUpside = raw > 0 && psa10 > raw ? +(psa10 / raw).toFixed(1) : 0;
+  const gradeUpside = mp > 0 && psa10 > mp ? +(psa10 / mp).toFixed(1) : 0;
 
   // Simple signal detection
   const signals: string[] = [];
   if (gradeUpside >= 3) signals.push("Grading Candidate");
   if (rarity && ["Rare Holo", "Illustration Rare", "Rare Secret"].includes(rarity)) signals.push("Collector Favorite");
-  if (year < 2005 && raw > 5000) signals.push("Blue Chip");
+  if (year < 2005 && mp > 5000) signals.push("Blue Chip");
   if (vol > 200) signals.push("High Liquidity");
 
   // Simple buy score
@@ -117,18 +117,20 @@ export default function MarketPage() {
 
       {/* Top stats */}
       {isLoading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 12 }}>
+        <div className="grid-market-stats">
           {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 100, borderRadius: "var(--radius)" }} />)}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 12 }}>
+        <div className="grid-market-stats">
           <Panel padding={18}>
             <div style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, marginBottom: 6 }}>Pokemon 250 Index</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 10 }}>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 700, color: "var(--accent)" }}>{indexVal.toLocaleString()}</span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: clr(totalRet) }}>{totalRet >= 0 ? "+" : ""}{totalRet.toFixed(1)}% 5Y</span>
             </div>
-            <Sparkline data={indexData.map((p) => p.value)} width={380} height={42} />
+            <div style={{ width: "100%", maxWidth: 380 }}>
+              <Sparkline data={indexData.map((p) => p.value)} width={380} height={42} />
+            </div>
           </Panel>
           <Stat label="Total Market Cap" value={stats?.totalMarketCap ? `$${(stats.totalMarketCap / 10000).toFixed(1)}M` : "—"} sub="+2.1% today" color="var(--pos)" />
           <Stat label="Cards Tracked" value={stats?.trackedCards?.toLocaleString() ?? "—"} sub={`of ${stats?.totalCards?.toLocaleString() ?? "—"} total`} />
@@ -137,7 +139,7 @@ export default function MarketPage() {
       )}
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 4, background: "var(--bg-panel-2)", padding: 4, borderRadius: "var(--radius)", width: "fit-content" }}>
+      <div className="tab-bar" style={{ background: "var(--bg-panel-2)", padding: 4, borderRadius: "var(--radius)", width: "fit-content", maxWidth: "100%" }}>
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             padding: "8px 16px", borderRadius: "calc(var(--radius) - 4px)", border: "none",

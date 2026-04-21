@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { trpc as api } from "@/lib/trpc/client";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { BuyScoreRing } from "@/components/ui/BuyScoreRing";
-import { Sparkline } from "@/components/ui/Sparkline";
 import { Pill } from "@/components/ui/Pill";
 import { Panel } from "@/components/ui/Panel";
 import { Stat } from "@/components/ui/Stat";
@@ -152,12 +151,12 @@ function DashboardSkeleton() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div className="skeleton" style={{ height: 220, borderRadius: "var(--radius)" }} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div className="grid-4col">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="skeleton" style={{ height: 80, borderRadius: "var(--radius)" }} />
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+      <div className="grid-panels">
         <div className="skeleton" style={{ height: 360, borderRadius: "var(--radius)" }} />
         <div className="skeleton" style={{ height: 360, borderRadius: "var(--radius)" }} />
       </div>
@@ -236,14 +235,12 @@ export default function DashboardPage() {
       {/* ─── Hero: Today's Top Buy ─── */}
       {topBuy && (
         <div
+          className="grid-hero"
           style={{
             background: "var(--bg-panel)",
             border: "1px solid var(--border-hi)",
             borderRadius: "var(--radius)",
             padding: 28,
-            display: "grid",
-            gridTemplateColumns: "auto 1fr auto",
-            gap: 28,
             alignItems: "center",
             position: "relative",
             overflow: "hidden",
@@ -360,7 +357,7 @@ export default function DashboardPage() {
       )}
 
       {/* ─── 4-Stat Strip ─── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div className="grid-4col">
         <Stat
           label="Pokémon 250 Index"
           value={currentIdx ? formatNum(currentIdx.value, 0) : "—"}
@@ -391,7 +388,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ─── Buy Now + Market Pulse ─── */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+      <div className="grid-panels">
         <Panel
           title="Buy Now — Ranked by Score"
           action={
@@ -416,9 +413,8 @@ export default function DashboardPage() {
                 key={c.id}
                 onClick={() => router.push(`/cards/${c.id}`)}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "28px 56px 1fr 100px 100px 60px",
-                  gap: 14,
+                  display: "flex",
+                  gap: 10,
                   alignItems: "center",
                   padding: "12px 4px",
                   borderBottom: i < buyNowList.length - 1 ? "1px solid var(--border)" : "none",
@@ -433,23 +429,14 @@ export default function DashboardPage() {
                   (e.currentTarget as HTMLDivElement).style.background = "transparent";
                 }}
               >
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    color: "var(--text-3)",
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
-                >
-                  #{i + 2}
-                </span>
                 <CardArt cardId={c.id} name={c.name} imageUrl={c.imageSmall} w={52} h={72} />
-                <div style={{ minWidth: 0 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>
                     {c.name}
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-3)" }}>{c.setName}</div>
                   <div
+                    className="hide-mobile"
                     style={{
                       fontSize: 11,
                       color: "var(--text-2)",
@@ -464,15 +451,6 @@ export default function DashboardPage() {
                     {c.thesis.length > 75 ? c.thesis.slice(0, 72) + "…" : c.thesis}
                   </div>
                 </div>
-                {(data?.sparklines as Record<string, number[]> | undefined)?.[c.id]?.length ? (
-                  <Sparkline
-                    data={(data!.sparklines as Record<string, number[]>)[c.id]}
-                    width={80}
-                    height={32}
-                  />
-                ) : (
-                  <div style={{ width: 80, height: 32 }} />
-                )}
                 <div style={{ textAlign: "right" }}>
                   <div
                     style={{
@@ -485,7 +463,6 @@ export default function DashboardPage() {
                     {formatCents(c.marketPrice)}
                   </div>
                 </div>
-                <BuyScoreRing score={c.buyScore} size={48} showLabel={false} />
               </div>
             ))}
           </div>
@@ -530,7 +507,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ─── Index Chart + Grading Arbitrage ─── */}
-      <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 20 }}>
+      <div className="grid-panels-3-2">
         <Panel title="Pokémon 250 Index · 5Y">
           {indexData.length > 1 ? (
             <>

@@ -119,10 +119,36 @@ body {
   }
 }
 
-/* Main content padding */
+/* Main content padding — extra bottom padding on mobile for bottom nav */
+.main-content {
+  padding: 16px 12px 80px;
+}
+
 @media (min-width: 768px) {
   .main-content {
-    padding: 28px 24px 60px !important;
+    padding: 28px 24px 60px;
+  }
+}
+
+/* Sidebar hidden on mobile, visible on desktop */
+.sidebar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    display: flex;
+  }
+}
+
+/* Mobile bottom nav */
+.mobile-nav {
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .mobile-nav {
+    display: none;
   }
 }
 
@@ -138,6 +164,17 @@ body {
   }
 }
 
+/* Header hidden on mobile */
+.desktop-header {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .desktop-header {
+    display: flex;
+  }
+}
+
 /* Skeleton loader animation */
 @keyframes shimmer {
   0% { background-position: -200% center; }
@@ -148,6 +185,134 @@ body {
   background: linear-gradient(90deg, var(--bg-panel-2) 25%, var(--border) 50%, var(--bg-panel-2) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Dashboard hero: stack on mobile */
+.grid-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .grid-hero {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 28px;
+  }
+}
+
+/* Two-panel layout (e.g. buy-now + market pulse) */
+.grid-panels {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 1024px) {
+  .grid-panels {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+/* Index + grading layout */
+.grid-panels-3-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 1024px) {
+  .grid-panels-3-2 {
+    grid-template-columns: 3fr 2fr;
+  }
+}
+
+/* Market top stats: stack on mobile */
+.grid-market-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .grid-market-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-market-stats {
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+  }
+}
+
+/* Buy Now row: simplified on mobile */
+.buy-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 10px;
+}
+
+@media (min-width: 768px) {
+  .buy-row {
+    grid-template-columns: 28px 56px 1fr 100px 100px 60px;
+    gap: 14px;
+  }
+}
+
+/* Grading card grid */
+.grid-grading {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 768px) {
+  .grid-grading {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Card detail hero */
+.grid-card-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .grid-card-detail {
+    display: grid;
+    grid-template-columns: 200px 1fr 280px;
+    gap: 28px;
+  }
+}
+
+/* Tab bar scroll on mobile */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Screener: filter panel + results */
+.grid-screener {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 1024px) {
+  .grid-screener {
+    grid-template-columns: 320px 1fr;
+  }
 }
 
 /* Truncate long text in table cells */

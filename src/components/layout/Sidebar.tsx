@@ -32,6 +32,7 @@ export function Sidebar() {
 
   return (
     <aside
+      className="sidebar"
       style={{
         width: 232,
         minHeight: "100vh",
@@ -40,7 +41,6 @@ export function Sidebar() {
         alignSelf: "flex-start",
         background: "var(--bg-panel)",
         borderRight: "1px solid var(--border)",
-        display: "flex",
         flexDirection: "column",
         padding: "20px 12px",
         gap: 4,

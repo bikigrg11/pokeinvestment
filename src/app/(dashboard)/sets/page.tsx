@@ -149,14 +149,14 @@ export default function SetsPage() {
         <Panel title="Set Performance · Sorted by Avg Price">
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {perfData.map((s) => (
-              <div key={s.id} style={{ display: "grid", gridTemplateColumns: "260px 1fr 140px 100px", gap: 16, alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+              <div key={s.id} style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{s.name}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-3)" }}>{Number(s.cardCount)} cards</div>
                 </div>
-                <div style={{ position: "relative", height: 22, background: "var(--bg-panel-2)", borderRadius: 4 }}>
+                <div style={{ position: "relative", height: 22, background: "var(--bg-panel-2)", borderRadius: 4, flex: "1 1 120px", minWidth: 80 }}>
                   <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${(s.avgMarketPrice / maxAvg) * 100}%`, background: `linear-gradient(90deg, color-mix(in srgb, var(--accent) 30%, transparent), var(--accent))`, borderRadius: 4 }} />
                   <div style={{ position: "absolute", right: 10, top: 0, bottom: 0, display: "flex", alignItems: "center", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text)", fontWeight: 600 }}>{formatCents(s.avgMarketPrice)}</div>
                 </div>

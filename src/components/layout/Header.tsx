@@ -1,18 +1,22 @@
 "use client";
 
-import { Search, Bell, User } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
 import { useTheme } from "@/components/providers/ThemeProvider";
 
 export function Header() {
   const { theme, toggle } = useTheme();
+  const router = useRouter();
+  const [headerSearch, setHeaderSearch] = useState("");
 
   return (
     <header
+      className="desktop-header"
       style={{
         height: 52,
         background: "var(--bg-panel)",
         borderBottom: "1px solid var(--border)",
-        display: "flex",
         alignItems: "center",
         padding: "0 28px",
         gap: 16,
@@ -37,6 +41,14 @@ export function Header() {
           <input
             type="text"
             placeholder="Search cards, sets, players..."
+            value={headerSearch}
+            onChange={(e) => setHeaderSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && headerSearch.trim()) {
+                router.push(`/cards?q=${encodeURIComponent(headerSearch.trim())}`);
+                setHeaderSearch("");
+              }
+            }}
             style={{
               width: "100%",
               background: "var(--bg-panel-2)",
@@ -115,47 +127,8 @@ export function Header() {
           </button>
         </div>
 
-        {/* Notifications */}
-        <button
-          style={{
-            position: "relative",
-            padding: 6,
-            color: "var(--text-3)",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            borderRadius: 8,
-          }}
-        >
-          <Bell size={16} />
-          <span
-            style={{
-              position: "absolute",
-              top: 4,
-              right: 4,
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "var(--neg)",
-            }}
-          />
-        </button>
 
-        {/* Avatar */}
-        <div
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: "50%",
-            background: "var(--bg-panel-2)",
-            border: "1px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <User size={14} style={{ color: "var(--text-3)" }} />
-        </div>
+
       </div>
     </header>
   );

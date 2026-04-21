@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { trpc as api } from "@/lib/trpc/client";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -49,16 +49,34 @@ function enrichCard(c: Record<string, unknown>) {
   return { raw, psa10, gradeUpside, signals, buyScore: score };
 }
 
-export default function CardsPage() {
-  const router = useRouter();
+export default function CardsPageWrapper() {
+  return (
+    <Suspense>
+      <CardsPage />
+    </Suspense>
+  );
+}
 
-  const [search, setSearch] = useState(_filterCache.search);
+function CardsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
+
+  const [search, setSearch] = useState(urlQuery || _filterCache.search);
   const [filterSet, setFilterSet] = useState(_filterCache.filterSet);
   const [filterRarity, setFilterRarity] = useState(_filterCache.filterRarity);
   const [filterSignal, setFilterSignal] = useState(_filterCache.filterSignal);
   const [page, setPage] = useState(_filterCache.page);
 
-  const [debouncedSearch, setDebouncedSearch] = useState(_filterCache.search);
+  // Sync from URL query param (header search)
+  useEffect(() => {
+    if (urlQuery && urlQuery !== search) {
+      setSearch(urlQuery);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlQuery]);
+
+  const [debouncedSearch, setDebouncedSearch] = useState(urlQuery || _filterCache.search);
   useEffect(() => {
     _filterCache.search = search;
     setPage(1); _filterCache.page = 1;
@@ -128,11 +146,11 @@ export default function CardsPage() {
       {isError ? (
         <ErrorState message="Failed to load cards" onRetry={() => void refetch()} />
       ) : isLoading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
           {[...Array(12)].map((_, i) => <div key={i} className="skeleton" style={{ height: 240, borderRadius: "var(--radius)" }} />)}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
           {cards.map((c) => {
             const enriched = enrichCard(c as unknown as Record<string, unknown>);
             const mp = c.prices[0]?.marketPrice ?? null;

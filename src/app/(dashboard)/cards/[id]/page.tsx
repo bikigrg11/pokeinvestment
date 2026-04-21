@@ -33,7 +33,7 @@ function ChartTooltip({ active, payload, label }: {
       <div style={{ color: "var(--text-3)", marginBottom: 4 }}>{label}</div>
       {payload.map((p, i) => (
         <div key={i} style={{ color: p.color, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
-          {p.name}: {p.dataKey === "price" ? formatCents(p.value) : formatNum(p.value, 0)}
+          {p.name}: {p.dataKey === "price" || p.dataKey === "psa10" ? `$${p.value.toLocaleString()}` : formatNum(p.value, 0)}
         </div>
       ))}
     </div>
@@ -44,7 +44,7 @@ function CardDetailSkeleton() {
   return (
     <div>
       <div className="skeleton" style={{ height: 14, width: 100, borderRadius: 4, marginBottom: 16 }} />
-      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr 280px", gap: 28, marginBottom: 24 }}>
+      <div className="grid-card-detail" style={{ marginBottom: 24 }}>
         <div className="skeleton" style={{ width: 200, height: 280, borderRadius: "var(--radius)" }} />
         <div>
           <div className="skeleton" style={{ height: 40, width: "60%", borderRadius: 4, marginBottom: 10 }} />
@@ -100,13 +100,26 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
   const activeVariantData = activeVariantKey ? card.latestByVariant[activeVariantKey] : null;
 
   const cutoffMs = Date.now() - RANGES[range] * 86400 * 1000;
-  const chartData = card.prices
+  const rawChartData = card.prices
     .filter((p) => p.variant === activeVariantKey && new Date(p.date).getTime() >= cutoffMs)
     .map((p) => ({
       date: new Date(p.date).toISOString().slice(0, 10),
-      price: (p.marketPrice ?? 0) / 100,
+      price: ((p.rawPrice ?? p.marketPrice ?? 0) / 100),
+      psa10: p.psa10Price ? p.psa10Price / 100 : undefined,
       volume: p.volume ?? 0,
     }));
+
+  // Remove price outliers using IQR method
+  const sortedPrices = rawChartData.map((d) => d.price).filter((p) => p > 0).sort((a, b) => a - b);
+  let chartData = rawChartData;
+  if (sortedPrices.length >= 5) {
+    const q1 = sortedPrices[Math.floor(sortedPrices.length * 0.25)];
+    const q3 = sortedPrices[Math.floor(sortedPrices.length * 0.75)];
+    const iqr = q3 - q1;
+    const lo = q1 - 1.5 * iqr;
+    const hi = q3 + 1.5 * iqr;
+    chartData = rawChartData.filter((d) => d.price >= lo && d.price <= hi);
+  }
 
   const startPrice = chartData[0]?.price ?? 0;
   const endPrice = chartData[chartData.length - 1]?.price ?? 0;
@@ -168,7 +181,7 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
       </button>
 
       {/* Hero header — 3 column */}
-      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr 280px", gap: 28, alignItems: "flex-start" }}>
+      <div className="grid-card-detail" style={{ alignItems: "flex-start" }}>
         <CardArt cardId={card.id} name={card.name} imageUrl={card.imageSmall ?? card.imageLarge} w={200} h={280} />
 
         <div>
@@ -260,11 +273,14 @@ export default function CardDetailPage({ params }: { params: Promise<{ id: strin
               </defs>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="date" tick={{ fill: "var(--text-3)", fontSize: 10 }} tickLine={false} axisLine={false} />
-              <YAxis yAxisId="price" tick={{ fill: "var(--text-3)", fontSize: 10 }} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
+              <YAxis yAxisId="price" tick={{ fill: "var(--text-3)", fontSize: 10 }} tickLine={false} axisLine={false} domain={[0, "auto"]} tickFormatter={(v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
               <YAxis yAxisId="vol" orientation="right" tick={{ fill: "var(--text-3)", fontSize: 10 }} tickLine={false} axisLine={false} />
               <Tooltip content={<ChartTooltip />} />
               <Bar yAxisId="vol" dataKey="volume" fill="var(--border)" radius={[2, 2, 0, 0]} name="Volume" isAnimationActive={false} />
-              <Area yAxisId="price" type="monotone" dataKey="price" stroke={priceColor} fill="url(#cardGrad)" strokeWidth={2} dot={false} name="Price $" isAnimationActive={false} />
+              <Area yAxisId="price" type="monotone" dataKey="price" stroke={priceColor} fill="url(#cardGrad)" strokeWidth={2} dot={false} name="Raw Price $" isAnimationActive={false} />
+              {chartData.some((d) => d.psa10) && (
+                <Area yAxisId="price" type="monotone" dataKey="psa10" stroke="var(--accent)" fill="none" strokeWidth={2} strokeDasharray="6 3" dot={false} name="PSA 10 $" isAnimationActive={false} />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         )}

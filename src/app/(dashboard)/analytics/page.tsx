@@ -226,7 +226,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Screener with filters + results */}
-      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 20 }}>
+      <div className="grid-screener">
         <Panel title="Filters">
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {[
