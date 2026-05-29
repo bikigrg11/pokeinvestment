@@ -220,9 +220,10 @@ model Entry {
   voteScore        Int           @default(0)
   heatScore        Float         @default(0)
   youtubeChannelId String?       @unique
-  ytSubscribers    Int?
+  ytSubscribers    Int?          // cached current value; daily history lives in EntryMetric
   submitterHash    String?
   createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
   links            EntryLink[]
   votes            EntryVote[]
   metrics          EntryMetric[]
