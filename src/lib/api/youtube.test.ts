@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { parseChannelInput, fetchYouTubeChannels } from "./youtube";
+import { parseChannelInput, fetchYouTubeChannels, fetchYouTubeByHandle } from "./youtube";
 
 describe("parseChannelInput", () => {
   it("extracts a channel id from a /channel/ URL", () => {
@@ -67,5 +67,42 @@ describe("fetchYouTubeChannels", () => {
   it("returns [] for empty id list", async () => {
     vi.stubEnv("YOUTUBE_API_KEY", "test-key");
     expect(await fetchYouTubeChannels([])).toEqual([]);
+  });
+});
+
+describe("fetchYouTubeByHandle", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("resolves a handle to channel stats via forHandle", async () => {
+    vi.stubEnv("YOUTUBE_API_KEY", "test-key");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "UC999",
+              snippet: { title: "Handled", thumbnails: { default: { url: "http://av" } } },
+              statistics: { subscriberCount: "200", viewCount: "3000" },
+            },
+          ],
+        }),
+      }))
+    );
+
+    const res = await fetchYouTubeByHandle("@Handled");
+    expect(res).toEqual({ channelId: "UC999", title: "Handled", avatarUrl: "http://av", subscribers: 200, views: 3000 });
+  });
+
+  it("returns null when no api key is configured", async () => {
+    vi.stubEnv("YOUTUBE_API_KEY", "");
+    expect(await fetchYouTubeByHandle("@Handled")).toBeNull();
+  });
+
+  it("returns null when the handle has no match", async () => {
+    vi.stubEnv("YOUTUBE_API_KEY", "test-key");
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ items: [] }) })));
+    expect(await fetchYouTubeByHandle("@nope")).toBeNull();
   });
 });

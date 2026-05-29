@@ -2,7 +2,12 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, publicProcedure, adminProcedure } from "@/lib/trpc";
 import { voterHash, isSpam } from "@/lib/utils/voter";
-import { parseChannelInput, fetchYouTubeChannels } from "@/lib/api/youtube";
+import {
+  parseChannelInput,
+  fetchYouTubeChannels,
+  fetchYouTubeByHandle,
+  type YTChannelStats,
+} from "@/lib/api/youtube";
 
 const CATEGORIES = [
   "YOUTUBER", "SOCIAL_CREATOR", "STREAMER_BREAKER", "INVESTOR_X", "PODCAST",
@@ -95,18 +100,24 @@ export const creatorsRouter = createTRPCRouter({
       }
 
       // Resolve a YouTube channel id + avatar when a YouTube URL is provided.
+      // Both /channel/UC… (id) and @handle forms are supported so the most
+      // common paste format still unlocks Heat tracking. Failure is non-fatal —
+      // the entry still saves, just without YouTube signal.
       let youtubeChannelId: string | null = null;
       let avatarUrl: string | null = null;
       let ytSubscribers: number | null = null;
       if (input.youtubeUrl) {
         const parsed = parseChannelInput(input.youtubeUrl);
+        let stat: YTChannelStats | null = null;
         if (parsed.kind === "id") {
-          const [stat] = await fetchYouTubeChannels([parsed.value]);
-          if (stat) {
-            youtubeChannelId = stat.channelId;
-            avatarUrl = stat.avatarUrl;
-            ytSubscribers = stat.subscribers;
-          }
+          stat = (await fetchYouTubeChannels([parsed.value]))[0] ?? null;
+        } else if (parsed.kind === "handle") {
+          stat = await fetchYouTubeByHandle(parsed.value);
+        }
+        if (stat) {
+          youtubeChannelId = stat.channelId;
+          avatarUrl = stat.avatarUrl;
+          ytSubscribers = stat.subscribers;
         }
       }
 
@@ -140,6 +151,12 @@ export const creatorsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const voter = fingerprint(ctx.headers);
 
+      const existing = await ctx.db.entry.findUnique({
+        where: { id: input.entryId },
+        select: { status: true },
+      });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+
       // Upsert this voter's vote; recompute the denormalized score from scratch.
       await ctx.db.entryVote.upsert({
         where: { entryId_voterHash: { entryId: input.entryId, voterHash: voter } },
@@ -154,7 +171,13 @@ export const creatorsRouter = createTRPCRouter({
       const voteScore = agg._sum.value ?? 0;
 
       // Downvote-bury: auto-hide entries the community pushes to -3 or below.
-      const status = voteScore <= -3 ? "hidden" : "live";
+      // An admin hide ("admin_hidden") is sticky — votes never resurrect it.
+      const status =
+        existing.status === "admin_hidden"
+          ? "admin_hidden"
+          : voteScore <= -3
+            ? "hidden"
+            : "live";
       await ctx.db.entry.update({
         where: { id: input.entryId },
         data: { voteScore, status },
@@ -174,6 +197,23 @@ export const creatorsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Only allow calls against a real, live entry and a real card — avoids
+      // banking junk rows (and a raw FK 500) from arbitrary client input.
+      const entry = await ctx.db.entry.findUnique({
+        where: { id: input.entryId },
+        select: { status: true },
+      });
+      if (!entry || entry.status !== "live") {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Entry not found" });
+      }
+      const card = await ctx.db.card.findUnique({
+        where: { id: input.cardId },
+        select: { id: true },
+      });
+      if (!card) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown card" });
+      }
+
       // Bank the price snapshot at call time (Phase 2 grades against forward prices).
       const latest = await ctx.db.cardPrice.findFirst({
         where: { cardId: input.cardId },
@@ -201,9 +241,11 @@ export const creatorsRouter = createTRPCRouter({
   adminSetStatus: adminProcedure
     .input(z.object({ entryId: z.string(), status: z.enum(["live", "hidden"]) }))
     .mutation(async ({ ctx, input }) => {
+      // Store admin hides as a distinct "admin_hidden" so community votes can't
+      // resurrect them (the vote handler treats that status as sticky).
       return ctx.db.entry.update({
         where: { id: input.entryId },
-        data: { status: input.status },
+        data: { status: input.status === "hidden" ? "admin_hidden" : "live" },
       });
     }),
 });

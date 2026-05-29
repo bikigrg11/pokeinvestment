@@ -36,6 +36,16 @@ interface YTApiItem {
 const toNum = (s: string | undefined): number | null =>
   s == null || s === "" ? null : Number(s);
 
+function mapItem(item: YTApiItem): YTChannelStats {
+  return {
+    channelId: item.id,
+    title: item.snippet?.title ?? "",
+    avatarUrl: item.snippet?.thumbnails?.default?.url ?? null,
+    subscribers: toNum(item.statistics?.subscriberCount),
+    views: toNum(item.statistics?.viewCount),
+  };
+}
+
 /**
  * Batch up to 50 channel ids per `channels.list` call (free quota ~1 unit/call).
  * Returns [] if no API key is set so callers degrade gracefully.
@@ -53,15 +63,26 @@ export async function fetchYouTubeChannels(ids: string[]): Promise<YTChannelStat
     const res = await fetch(url);
     if (!res.ok) continue;
     const data = (await res.json()) as { items?: YTApiItem[] };
-    for (const item of data.items ?? []) {
-      out.push({
-        channelId: item.id,
-        title: item.snippet?.title ?? "",
-        avatarUrl: item.snippet?.thumbnails?.default?.url ?? null,
-        subscribers: toNum(item.statistics?.subscriberCount),
-        views: toNum(item.statistics?.viewCount),
-      });
-    }
+    for (const item of data.items ?? []) out.push(mapItem(item));
   }
   return out;
+}
+
+/**
+ * Resolve a channel by its @handle (e.g. "SomeCreator" from youtube.com/@SomeCreator).
+ * `channels.list` accepts `forHandle` directly. Returns null if no key, no match,
+ * or on error — callers degrade gracefully (entry saves without Heat tracking).
+ */
+export async function fetchYouTubeByHandle(handle: string): Promise<YTChannelStats | null> {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key || !handle) return null;
+  const h = handle.startsWith("@") ? handle.slice(1) : handle;
+  const url =
+    `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics` +
+    `&forHandle=${encodeURIComponent(h)}&key=${key}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = (await res.json()) as { items?: YTApiItem[] };
+  const item = data.items?.[0];
+  return item ? mapItem(item) : null;
 }
