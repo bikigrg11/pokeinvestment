@@ -10,7 +10,7 @@ const CATEGORIES = [
   "TOOL_SITE", "NEWS_BLOG", "COMMUNITY",
 ] as const;
 
-const SUBMIT_LIMIT_PER_DAY = 3;
+const SUBMIT_LIMIT_PER_HOUR = 3;
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
@@ -90,7 +90,7 @@ export const creatorsRouter = createTRPCRouter({
       const recent = await ctx.db.entry.count({
         where: { submitterHash, createdAt: { gte: since } },
       });
-      if (recent >= SUBMIT_LIMIT_PER_DAY) {
+      if (recent >= SUBMIT_LIMIT_PER_HOUR) {
         throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Slow down — try again later" });
       }
 
