@@ -4,6 +4,7 @@ import { setsRouter } from "./sets";
 import { analyticsRouter } from "./analytics";
 import { pricesRouter } from "./prices";
 import { sealedRouter } from "./sealed";
+import { creatorsRouter } from "./creators";
 
 export const appRouter = createTRPCRouter({
   cards: cardsRouter,
@@ -11,6 +12,7 @@ export const appRouter = createTRPCRouter({
   prices: pricesRouter,
   analytics: analyticsRouter,
   sealed: sealedRouter,
+  creators: creatorsRouter,
 });
 
 export type AppRouter = typeof appRouter;
