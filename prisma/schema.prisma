@@ -78,6 +78,7 @@ model Card {
   prices        CardPrice[]
   holdings      PortfolioHolding[]
   alerts        PriceAlert[]
+  creatorCalls  CreatorCall[]
 
   @@index([pokemon])
   @@index([setId])
@@ -190,4 +191,94 @@ model IndexSnapshot {
   totalMarketCap Float
 
   @@index([date])
+}
+
+enum EntryCategory {
+  YOUTUBER
+  SOCIAL_CREATOR
+  STREAMER_BREAKER
+  INVESTOR_X
+  PODCAST
+  MARKETPLACE
+  LGS
+  GROUP_BREAK
+  GRADING
+  AUTHENTICATION
+  TOOL_SITE
+  NEWS_BLOG
+  COMMUNITY
+}
+
+model Entry {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  name             String
+  category         EntryCategory
+  bio              String?
+  avatarUrl        String?
+  status           String        @default("live") // live | hidden
+  voteScore        Int           @default(0)
+  heatScore        Float         @default(0)
+  youtubeChannelId String?       @unique
+  ytSubscribers    Int?
+  submitterHash    String?
+  createdAt        DateTime      @default(now())
+  links            EntryLink[]
+  votes            EntryVote[]
+  metrics          EntryMetric[]
+  calls            CreatorCall[]
+
+  @@index([category, heatScore])
+  @@index([status])
+  @@index([submitterHash])
+}
+
+model EntryLink {
+  id       String @id @default(cuid())
+  entryId  String
+  entry    Entry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  platform String
+  url      String
+
+  @@index([entryId])
+}
+
+model EntryVote {
+  id        String   @id @default(cuid())
+  entryId   String
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  voterHash String
+  value     Int
+  createdAt DateTime @default(now())
+
+  @@unique([entryId, voterHash])
+}
+
+model EntryMetric {
+  id            String   @id @default(cuid())
+  entryId       String
+  entry         Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  date          DateTime
+  ytSubscribers Int?
+  ytViews       BigInt?
+  upvotes7d     Int?
+  views7d       Int?
+
+  @@unique([entryId, date])
+}
+
+model CreatorCall {
+  id           String   @id @default(cuid())
+  entryId      String
+  entry        Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  cardId       String
+  card         Card     @relation(fields: [cardId], references: [id])
+  direction    String   // "bullish" (extensible to "bearish")
+  sourceUrl    String?
+  calledAt     DateTime
+  priceAtCallC Int?
+  createdAt    DateTime @default(now())
+
+  @@index([entryId])
+  @@index([cardId])
 }
