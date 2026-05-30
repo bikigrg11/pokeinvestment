@@ -60,15 +60,15 @@ export const analyticsRouter = createTRPCRouter({
         SELECT c.id, c.name, c.rarity, c."imageSmall", s.name AS "setName", s.series, s."releaseDate",
                l."marketPrice", l.volume, l."psa10Price", l."rawPrice", l.variant
         FROM "LatestCardPrice" l JOIN "Card" c ON c.id = l."cardId" JOIN "Set" s ON s.id = c."setId"
-        WHERE l."psa10Price" IS NOT NULL AND l."rawPrice" > 500 AND s."releaseDate" < '2003-01-01'
-        ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 5
+        WHERE l."psa10Price" IS NOT NULL AND l."marketPrice" > 500 AND l."psa10Price" > l."marketPrice" AND s."releaseDate" < '2003-01-01'
+        ORDER BY (l."psa10Price"::float / l."marketPrice") DESC LIMIT 5
       `,
       ctx.db.$queryRaw<CardRow[]>`
         SELECT c.id, c.name, c.rarity, c."imageSmall", s.name AS "setName", s.series, s."releaseDate",
                l."marketPrice", l.volume, l."psa10Price", l."rawPrice", l.variant
         FROM "LatestCardPrice" l JOIN "Card" c ON c.id = l."cardId" JOIN "Set" s ON s.id = c."setId"
-        WHERE l."psa10Price" IS NOT NULL AND l."rawPrice" > 500 AND s."releaseDate" >= '2003-01-01'
-        ORDER BY (l."psa10Price"::float / l."rawPrice") DESC LIMIT 5
+        WHERE l."psa10Price" IS NOT NULL AND l."marketPrice" > 500 AND l."psa10Price" > l."marketPrice" AND s."releaseDate" >= '2003-01-01'
+        ORDER BY (l."psa10Price"::float / l."marketPrice") DESC LIMIT 5
       `,
       ctx.db.$queryRaw<CardRow[]>`
         SELECT c.id, c.name, c.rarity, c."imageSmall", s.name AS "setName", s.series, s."releaseDate",
@@ -199,10 +199,16 @@ export const analyticsRouter = createTRPCRouter({
       LIMIT 20
     `;
 
-    // Build pulse events from real data
+    // Build pulse events from real data — filter out synthetic noise
+    // Only include cards with reasonable % moves (cap at 50%) and minimum $5 absolute change
     const marketPulse: Array<{ tag: string; text: string; pctChange: number }> = [];
-    const gainers = pulseRows.filter((r) => Number(r.pctChange) > 5).slice(0, 3);
-    const losers = pulseRows.filter((r) => Number(r.pctChange) < -5).slice(0, 2);
+    const validPulse = pulseRows.filter((r) => {
+      const pct = Math.abs(Number(r.pctChange));
+      const absDelta = Math.abs(r.currentPrice - r.prevPrice);
+      return pct <= 50 && absDelta >= 500; // max 50% swing, min $5 change
+    });
+    const gainers = validPulse.filter((r) => Number(r.pctChange) > 3).slice(0, 3);
+    const losers = validPulse.filter((r) => Number(r.pctChange) < -3).slice(0, 2);
 
     for (const g of gainers) {
       marketPulse.push({
@@ -220,8 +226,8 @@ export const analyticsRouter = createTRPCRouter({
     }
 
     // Add grading event if any top grading card has big spread
-    if (topGradingVintage[0]?.psa10Price && topGradingVintage[0]?.rawPrice) {
-      const upside = (topGradingVintage[0].psa10Price / topGradingVintage[0].rawPrice).toFixed(0);
+    if (topGradingVintage[0]?.psa10Price && topGradingVintage[0]?.marketPrice) {
+      const upside = (topGradingVintage[0].psa10Price / topGradingVintage[0].marketPrice).toFixed(0);
       marketPulse.push({
         tag: "GRADING",
         text: `${topGradingVintage[0].name} showing ${upside}× PSA 10 premium — top grading arbitrage this week`,
@@ -316,25 +322,25 @@ export const analyticsRouter = createTRPCRouter({
       FROM "LatestCardPrice" l
       JOIN "Card" c ON c.id = l."cardId"
       JOIN "Set"  s ON s.id = c."setId"
-      WHERE l."psa10Price" IS NOT NULL AND l."rawPrice" > 500
+      WHERE l."psa10Price" IS NOT NULL AND l."marketPrice" > 500 AND l."psa10Price" > l."marketPrice"
     `;
 
     const enrich = (r: GradingRow) => ({
       ...r,
-      gradingUpside: r.psa10Price != null && r.rawPrice != null && r.rawPrice > 0
-        ? +(r.psa10Price / r.rawPrice).toFixed(2)
+      gradingUpside: r.psa10Price != null && r.marketPrice != null && r.marketPrice > 0
+        ? +(r.psa10Price / r.marketPrice).toFixed(2)
         : null,
     });
 
     const vintage = rows
       .filter((r) => r.releaseDate != null && new Date(r.releaseDate) < new Date("2003-01-01"))
-      .sort((a, b) => ((b.psa10Price ?? 0) / (b.rawPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.rawPrice ?? 1)))
+      .sort((a, b) => ((b.psa10Price ?? 0) / (b.marketPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.marketPrice ?? 1)))
       .slice(0, 100)
       .map(enrich);
 
     const modern = rows
       .filter((r) => r.releaseDate != null && new Date(r.releaseDate) >= new Date("2003-01-01"))
-      .sort((a, b) => ((b.psa10Price ?? 0) / (b.rawPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.rawPrice ?? 1)))
+      .sort((a, b) => ((b.psa10Price ?? 0) / (b.marketPrice ?? 1)) - ((a.psa10Price ?? 0) / (a.marketPrice ?? 1)))
       .slice(0, 100)
       .map(enrich);
 
