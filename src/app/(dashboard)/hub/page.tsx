@@ -64,10 +64,6 @@ function formatSubs(n: number): string {
   return String(n);
 }
 
-function heatColor(h: number) {
-  return h >= 75 ? "#fbbf24" : h >= 50 ? "#22c55e" : "#94a3b8";
-}
-
 type Entry = {
   id: string;
   slug: string;
@@ -77,15 +73,19 @@ type Entry = {
   heatScore: number;
   voteScore: number;
   ytSubscribers: number | null;
+  createdAt: string | Date;
   links: { id: string; platform: string; url: string }[];
 };
 
+type Sort = "subs" | "heat" | "votes" | "newest";
+const SORT_LABELS: Record<Sort, string> = { subs: "Subscribers", heat: "Heat", votes: "Votes", newest: "Newest" };
+
 export default function HubPage() {
   const [selected, setSelected] = useState<string>("all");
-  const [sort, setSort] = useState<"heat" | "votes" | "newest">("heat");
+  const [sort, setSort] = useState<Sort>("subs");
   const [showAdd, setShowAdd] = useState(false);
 
-  const { data, isLoading, isError, refetch } = trpc.creators.list.useQuery({ sort });
+  const { data, isLoading, isError, refetch } = trpc.creators.list.useQuery({});
   const entries = useMemo(() => (data ?? []) as Entry[], [data]);
 
   // Category counts, ordered by frequency (for the side-nav).
@@ -95,10 +95,17 @@ export default function HubPage() {
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }, [entries]);
 
-  const visible = useMemo(
-    () => (selected === "all" ? entries : entries.filter((e) => e.category === selected)),
-    [entries, selected]
-  );
+  // Filter by category, then sort client-side (so rank reflects the chosen order).
+  const visible = useMemo(() => {
+    const arr = selected === "all" ? [...entries] : entries.filter((e) => e.category === selected);
+    const cmp: Record<Sort, (a: Entry, b: Entry) => number> = {
+      subs: (a, b) => (b.ytSubscribers ?? -1) - (a.ytSubscribers ?? -1),
+      heat: (a, b) => b.heatScore - a.heatScore,
+      votes: (a, b) => b.voteScore - a.voteScore,
+      newest: (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    };
+    return [...arr].sort(cmp[sort]);
+  }, [entries, selected, sort]);
 
   return (
     <div className="main-content" style={{ maxWidth: 1440, margin: "0 auto" }}>
@@ -135,13 +142,13 @@ export default function HubPage() {
             {/* Sort controls */}
             <div style={{ display: "flex", gap: 6, marginBottom: 12, alignItems: "center" }}>
               <span style={{ fontSize: 11, color: "#64748b", marginRight: 2 }}>Sort</span>
-              {(["heat", "votes", "newest"] as const).map((s) => (
+              {(["subs", "heat", "votes", "newest"] as const).map((s) => (
                 <button
                   key={s}
                   onClick={() => setSort(s)}
-                  style={{ background: sort === s ? "#fbbf2415" : "transparent", color: sort === s ? "#fbbf24" : "#94a3b8", border: "1px solid #1e293b", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", textTransform: "capitalize" }}
+                  style={{ background: sort === s ? "#fbbf2415" : "transparent", color: sort === s ? "#fbbf24" : "#94a3b8", border: "1px solid #1e293b", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
                 >
-                  {s}
+                  {SORT_LABELS[s]}
                 </button>
               ))}
             </div>
@@ -156,8 +163,8 @@ export default function HubPage() {
               <div style={{ ...PANEL, textAlign: "center", color: "#64748b" }}>No entries in this category yet.</div>
             ) : (
               <div className="hub-cards">
-                {visible.map((e) => (
-                  <CreatorCard key={e.id} entry={e} />
+                {visible.map((e, idx) => (
+                  <CreatorCard key={e.id} entry={e} rank={idx + 1} />
                 ))}
               </div>
             )}
@@ -189,10 +196,23 @@ function CategoryButton({ label, count, active, onClick }: { label: string; coun
   );
 }
 
-function CreatorCard({ entry: e }: { entry: Entry }) {
+function CreatorCard({ entry: e, rank }: { entry: Entry; rank: number }) {
+  const top = rank <= 3;
   return (
     <div style={{ ...PANEL, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <span
+          title={`Rank #${rank}`}
+          style={{
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 800,
+            color: top ? "#0a0f1c" : "#94a3b8",
+            background: top ? "#fbbf24" : "#1e293b",
+            minWidth: 30, height: 30, borderRadius: 6,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}
+        >
+          {rank}
+        </span>
         <Link href={`/hub/${e.slug}`} style={{ flexShrink: 0 }}>
           {e.avatarUrl ? (
             <Image src={e.avatarUrl} alt={e.name} width={52} height={52} style={{ borderRadius: "50%", objectFit: "cover" }} />
@@ -213,12 +233,6 @@ function CreatorCard({ entry: e }: { entry: Entry }) {
             )}
           </div>
         </div>
-        <span
-          title="Heat score"
-          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: heatColor(e.heatScore), background: `${heatColor(e.heatScore)}15`, padding: "3px 8px", borderRadius: 4, flexShrink: 0 }}
-        >
-          {Math.round(e.heatScore)}
-        </span>
       </div>
 
       {/* Links */}
