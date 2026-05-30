@@ -14,6 +14,8 @@ import {
   Package,
   Users,
   Trophy,
+  Compass,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,7 +37,9 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: "Community",
     items: [
-      { href: "/hub", label: "Creator Hub", icon: Users },
+      { href: "/hub", label: "Discover", icon: Compass },
+      { href: "/hub/browse", label: "Browse", icon: Users },
+      { href: "/hub/videos", label: "Trending Videos", icon: Video },
       { href: "/rankings", label: "Rankings", icon: Trophy },
     ],
   },
@@ -130,8 +134,11 @@ export function Sidebar() {
               </div>
             )}
             {section.items.map(({ href, label, icon: Icon }) => {
+              // "/" and "/hub" match exactly so they don't also light up on deeper routes.
               const isActive =
-                href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+                href === "/" || href === "/hub"
+                  ? pathname === href
+                  : pathname === href || pathname.startsWith(href + "/");
               return (
                 <Link
                   key={href}
