@@ -6,9 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   BarChart3,
-  LayoutGrid,
   Award,
-  Filter,
   Compass,
   Trophy,
   type LucideIcon,
@@ -21,9 +19,7 @@ const NAV_SECTIONS: NavItem[][] = [
   [
     { href: "/", label: "Home", icon: Home },
     { href: "/market", label: "Market", icon: BarChart3 },
-    { href: "/cards", label: "Cards", icon: LayoutGrid },
     { href: "/grading", label: "Grading", icon: Award },
-    { href: "/analytics", label: "Screener", icon: Filter },
   ],
   [
     { href: "/hub", label: "Discover", icon: Compass },
