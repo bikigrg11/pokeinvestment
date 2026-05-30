@@ -331,6 +331,31 @@ body {
   display: block;
 }
 
+/* Dashboard split — market/grading main + community right rail */
+.dash-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 1100px) {
+  .dash-split {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    align-items: start;
+  }
+}
+.dash-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  .dash-rail {
+    position: sticky;
+    top: 72px;
+  }
+}
+
 /* Creator Hub — category side-nav + card grid layout */
 .hub-grid {
   display: grid;
