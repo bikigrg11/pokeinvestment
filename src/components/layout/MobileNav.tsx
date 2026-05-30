@@ -7,7 +7,7 @@ import {
   Home,
   BarChart3,
   Award,
-  Compass,
+  Users,
   Trophy,
   type LucideIcon,
 } from "lucide-react";
@@ -22,7 +22,7 @@ const NAV_SECTIONS: NavItem[][] = [
     { href: "/grading", label: "Grading", icon: Award },
   ],
   [
-    { href: "/hub", label: "Discover", icon: Compass },
+    { href: "/hub/browse", label: "Browse", icon: Users },
     { href: "/rankings", label: "Ranks", icon: Trophy },
   ],
 ];
