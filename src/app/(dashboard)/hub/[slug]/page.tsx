@@ -82,7 +82,7 @@ export default function EntryProfilePage({ params }: { params: Promise<{ slug: s
       {/* Share */}
       <div style={{ ...PANEL, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
         <span style={{ fontSize: 13, color: "var(--text-2)" }}>Found {entry.name} here? Share the profile.</span>
-        <ShareButtons url={`https://pokeinvestment.vercel.app/hub/${slug}`} title={`${entry.name} — Pokémon Creator Hub`} />
+        <ShareButtons url={`https://pokeinvestment.com/hub/${slug}`} title={`${entry.name} — Pokémon Creator Hub`} />
       </div>
 
       {/* Links */}

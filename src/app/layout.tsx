@@ -4,7 +4,7 @@ import { TRPCProvider } from "@/components/providers/TRPCProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pokeinvestment.vercel.app"),
+  metadataBase: new URL("https://pokeinvestment.com"),
   title: {
     default: "PokeInvest — Pokémon TCG Investment Analytics",
     template: "%s | PokeInvest",

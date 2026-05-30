@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 
-const BASE = "https://pokeinvestment.vercel.app";
+const BASE = "https://pokeinvestment.com";
 
 /** Sitemap so search engines index every creator/resource profile + key pages. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
