@@ -19,6 +19,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import Link from "next/link";
+import Image from "next/image";
+import { Flame, ArrowRight, ImageOff } from "lucide-react";
+import { VideoCard, type TrendingVideo } from "@/components/hub/VideoCard";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -663,6 +667,96 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+        </Panel>
+      </div>
+
+      <CommunitySection />
+    </div>
+  );
+}
+
+type MiniEntry = {
+  id: string;
+  slug: string;
+  name: string;
+  avatarUrl: string | null;
+  ytSubscribers: number | null;
+};
+
+function fmtSubs(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return String(n);
+}
+
+/** Community discovery surfaced on the dashboard: trending videos + top creators. */
+function CommunitySection() {
+  const trending = api.creators.trendingVideos.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
+  const list = api.creators.list.useQuery({});
+
+  const videos = ((trending.data ?? []) as TrendingVideo[]).slice(0, 4);
+  const creators = ((list.data ?? []) as MiniEntry[])
+    .filter((e) => e.ytSubscribers != null)
+    .sort((a, b) => (b.ytSubscribers ?? 0) - (a.ytSubscribers ?? 0))
+    .slice(0, 5);
+
+  return (
+    <div style={{ marginTop: 28 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <h2 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, fontWeight: 700, color: "var(--text)", margin: 0 }}>
+          <Flame size={18} color="var(--accent)" /> From the Community
+        </h2>
+        <Link href="/hub" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}>
+          Open Discover <ArrowRight size={13} />
+        </Link>
+      </div>
+
+      <div className="grid-2col">
+        {/* Trending videos */}
+        <Panel>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)" }}>Trending Videos</span>
+            <Link href="/hub/videos" style={{ fontSize: 11, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}>See all →</Link>
+          </div>
+          {videos.length === 0 ? (
+            <div style={{ color: "var(--text-3)", fontSize: 13 }}>Loading trending videos…</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+              {videos.map((v) => <VideoCard key={v.videoId} v={v} />)}
+            </div>
+          )}
+        </Panel>
+
+        {/* Top creators */}
+        <Panel>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)" }}>Top Creators</span>
+            <Link href="/rankings" style={{ fontSize: 11, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}>Rankings →</Link>
+          </div>
+          {creators.length === 0 ? (
+            <div style={{ color: "var(--text-3)", fontSize: 13 }}>Loading creators…</div>
+          ) : (
+            <div>
+              {creators.map((e, i) => (
+                <Link
+                  key={e.id}
+                  href={`/hub/${e.slug}`}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < creators.length - 1 ? "1px solid var(--border)" : "none", textDecoration: "none" }}
+                >
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 800, color: i < 3 ? "var(--accent)" : "var(--text-3)", width: 18 }}>{i + 1}</span>
+                  {e.avatarUrl ? (
+                    <Image src={e.avatarUrl} alt={e.name} width={34} height={34} style={{ borderRadius: "50%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <ImageOff size={16} color="var(--text-3)" />
+                    </div>
+                  )}
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-3)" }}>{fmtSubs(e.ytSubscribers ?? 0)}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </Panel>
       </div>
     </div>

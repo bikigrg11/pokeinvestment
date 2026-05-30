@@ -7,11 +7,7 @@ import { trpc } from "@/lib/trpc/client";
 import {
   Home,
   BarChart3,
-  LayoutGrid,
   Award,
-  Filter,
-  Layers,
-  Package,
   Users,
   Trophy,
   Compass,
@@ -27,11 +23,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/", label: "Dashboard", icon: Home },
       { href: "/market", label: "Market", icon: BarChart3 },
-      { href: "/cards", label: "Cards DB", icon: LayoutGrid },
       { href: "/grading", label: "Grading", icon: Award },
-      { href: "/analytics", label: "Screener", icon: Filter },
-      { href: "/sets", label: "Sets", icon: Layers },
-      { href: "/sealed", label: "Sealed", icon: Package },
     ],
   },
   {
