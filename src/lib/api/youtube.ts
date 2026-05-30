@@ -103,6 +103,26 @@ interface YTPlaylistItem {
   };
 }
 
+/** View counts for a set of video ids (batched 50/call). Returns {} on missing key. */
+export async function fetchVideoStats(ids: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key || ids.length === 0) return out;
+  for (let i = 0; i < ids.length; i += 50) {
+    const batch = ids.slice(i, i + 50);
+    const url =
+      `https://www.googleapis.com/youtube/v3/videos?part=statistics` +
+      `&id=${batch.join(",")}&key=${key}`;
+    const res = await fetch(url);
+    if (!res.ok) continue;
+    const data = (await res.json()) as {
+      items?: { id: string; statistics?: { viewCount?: string } }[];
+    };
+    for (const it of data.items ?? []) out.set(it.id, Number(it.statistics?.viewCount ?? 0));
+  }
+  return out;
+}
+
 /**
  * Recent uploads for a channel. A channel's uploads playlist id is its channel
  * id with the "UC" prefix swapped for "UU" — so we skip the extra channels.list

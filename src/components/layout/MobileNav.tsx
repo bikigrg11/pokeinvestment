@@ -9,7 +9,7 @@ import {
   LayoutGrid,
   Award,
   Filter,
-  Users,
+  Compass,
   Trophy,
   type LucideIcon,
 } from "lucide-react";
@@ -26,7 +26,7 @@ const NAV_SECTIONS: NavItem[][] = [
     { href: "/analytics", label: "Screener", icon: Filter },
   ],
   [
-    { href: "/hub", label: "Hub", icon: Users },
+    { href: "/hub", label: "Discover", icon: Compass },
     { href: "/rankings", label: "Ranks", icon: Trophy },
   ],
 ];
@@ -66,8 +66,8 @@ export function MobileNav() {
           )}
           {items.map(({ href, label, icon: Icon }) => {
             const isActive =
-              href === "/"
-                ? pathname === "/"
+              href === "/" || href === "/hub"
+                ? pathname === href
                 : pathname === href || pathname.startsWith(href + "/");
             return (
               <Link

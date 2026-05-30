@@ -4,59 +4,28 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ImageOff,
+  Flame,
+  TrendingUp,
+  Sparkles,
+  Wrench,
   Plus,
-  Youtube,
-  Globe,
-  Instagram,
-  Twitch,
-  Twitter,
-  Music2,
-  Mic,
-  MessageCircle,
-  ShoppingBag,
-  Link2,
+  ArrowRight,
+  ImageOff,
   type LucideIcon,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { VoteControl } from "@/components/hub/VoteControl";
 import { AddEntryModal } from "@/components/hub/AddEntryModal";
+import { VideoCard, type TrendingVideo } from "@/components/hub/VideoCard";
 
-const PANEL = { background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 8, padding: 20 };
-
-// Friendly labels for the category enum.
 const CATEGORY_LABELS: Record<string, string> = {
-  YOUTUBER: "YouTubers",
-  SOCIAL_CREATOR: "Social Creators",
-  STREAMER_BREAKER: "Breakers / Streamers",
-  INVESTOR_X: "Investors",
-  PODCAST: "Podcasts",
-  MARKETPLACE: "Marketplaces",
-  LGS: "Local Game Shops",
-  GROUP_BREAK: "Group Breaks",
-  GRADING: "Grading",
-  AUTHENTICATION: "Authentication",
-  TOOL_SITE: "Tools & Data",
-  NEWS_BLOG: "News & Info",
-  COMMUNITY: "Communities",
+  YOUTUBER: "YouTuber", SOCIAL_CREATOR: "Social", STREAMER_BREAKER: "Breaker",
+  INVESTOR_X: "Investor", PODCAST: "Podcast", MARKETPLACE: "Marketplace",
+  LGS: "Local Shop", GROUP_BREAK: "Group Break", GRADING: "Grading",
+  AUTHENTICATION: "Authentication", TOOL_SITE: "Tool", NEWS_BLOG: "News", COMMUNITY: "Community",
 };
 const labelFor = (c: string) => CATEGORY_LABELS[c] ?? c;
-
-// platform -> icon + brand color
-const PLATFORM_META: Record<string, { Icon: LucideIcon; color: string }> = {
-  youtube: { Icon: Youtube, color: "#ff0000" },
-  website: { Icon: Globe, color: "#38bdf8" },
-  instagram: { Icon: Instagram, color: "#e1306c" },
-  tiktok: { Icon: Music2, color: "var(--text)" },
-  x: { Icon: Twitter, color: "var(--text)" },
-  twitter: { Icon: Twitter, color: "#1da1f2" },
-  twitch: { Icon: Twitch, color: "#9146ff" },
-  discord: { Icon: MessageCircle, color: "#5865f2" },
-  podcast: { Icon: Mic, color: "var(--accent)" },
-  whatnot: { Icon: ShoppingBag, color: "var(--accent)" },
-};
-const platformMeta = (p: string) => PLATFORM_META[p.toLowerCase()] ?? { Icon: Link2, color: "var(--muted)" };
+const RESOURCE_CATS = new Set(["TOOL_SITE", "NEWS_BLOG", "MARKETPLACE", "GRADING", "AUTHENTICATION"]);
 
 function formatSubs(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
@@ -65,204 +34,155 @@ function formatSubs(n: number): string {
 }
 
 type Entry = {
-  id: string;
-  slug: string;
-  name: string;
-  category: string;
-  avatarUrl: string | null;
-  heatScore: number;
-  voteScore: number;
-  ytSubscribers: number | null;
-  createdAt: string | Date;
+  id: string; slug: string; name: string; category: string;
+  avatarUrl: string | null; ytSubscribers: number | null; createdAt: string | Date;
   links: { id: string; platform: string; url: string }[];
 };
 
-type Sort = "subs" | "heat" | "votes" | "newest";
-const SORT_LABELS: Record<Sort, string> = { subs: "Subscribers", heat: "Heat", votes: "Votes", newest: "Newest" };
-
-export default function HubPage() {
-  const [selected, setSelected] = useState<string>("all");
-  const [sort, setSort] = useState<Sort>("subs");
+export default function DiscoverPage() {
   const [showAdd, setShowAdd] = useState(false);
 
-  const { data, isLoading, isError, refetch } = trpc.creators.list.useQuery({});
-  const entries = useMemo(() => (data ?? []) as Entry[], [data]);
+  const list = trpc.creators.list.useQuery({});
+  const trending = trpc.creators.trendingVideos.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
+  const entries = useMemo(() => (list.data ?? []) as Entry[], [list.data]);
 
-  // Category counts, ordered by frequency (for the side-nav).
-  const categories = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const e of entries) counts.set(e.category, (counts.get(e.category) ?? 0) + 1);
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  }, [entries]);
-
-  // Filter by category, then sort client-side (so rank reflects the chosen order).
-  const visible = useMemo(() => {
-    const arr = selected === "all" ? [...entries] : entries.filter((e) => e.category === selected);
-    const cmp: Record<Sort, (a: Entry, b: Entry) => number> = {
-      subs: (a, b) => (b.ytSubscribers ?? -1) - (a.ytSubscribers ?? -1),
-      heat: (a, b) => b.heatScore - a.heatScore,
-      votes: (a, b) => b.voteScore - a.voteScore,
-      newest: (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    };
-    return [...arr].sort(cmp[sort]);
-  }, [entries, selected, sort]);
+  const topCreators = useMemo(
+    () => [...entries].filter((e) => e.ytSubscribers != null).sort((a, b) => (b.ytSubscribers ?? 0) - (a.ytSubscribers ?? 0)).slice(0, 6),
+    [entries]
+  );
+  const newest = useMemo(
+    () => [...entries].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6),
+    [entries]
+  );
+  const tools = useMemo(() => entries.filter((e) => RESOURCE_CATS.has(e.category)).slice(0, 8), [entries]);
+  const videos = (trending.data ?? []) as TrendingVideo[];
 
   return (
-    <div className="main-content" style={{ maxWidth: 1440, margin: "0 auto" }}>
-      {/* Page header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
+    <div className="main-content" style={{ maxWidth: 1280, margin: "0 auto" }}>
+      {/* Hero */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text)", margin: 0 }}>Creator Hub</h1>
-          <p style={{ color: "var(--text-3)", fontSize: 13, margin: "4px 0 0" }}>
-            People &amp; resources across the Pokémon hobby — browse by category, ranked by community Heat.
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--text)", margin: 0 }}>Discover</h1>
+          <p style={{ color: "var(--text-3)", fontSize: 14, margin: "6px 0 0", maxWidth: 560 }}>
+            New videos, creators &amp; tools across the Pokémon hobby — fresh every day.
           </p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--accent)", color: "var(--bg-panel-2)", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer", flexShrink: 0 }}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--accent)", color: "var(--bg-panel-2)", border: "none", borderRadius: "var(--radius)", padding: "10px 16px", fontWeight: 700, fontSize: 14, cursor: "pointer", flexShrink: 0, boxShadow: "var(--glow)" }}
         >
-          <Plus size={15} /> Add entry
+          <Plus size={16} /> Add a creator or tool
         </button>
       </div>
 
-      {isError ? (
-        <ErrorState message="Failed to load the directory." onRetry={() => void refetch()} />
+      {list.isError ? (
+        <ErrorState message="Failed to load Discover." onRetry={() => void list.refetch()} />
       ) : (
-        <div className="hub-grid">
-          {/* Category side-nav */}
-          <nav className="hub-cats">
-            <CategoryButton label="All" count={entries.length} active={selected === "all"} onClick={() => setSelected("all")} />
-            {categories.map(([cat, count]) => (
-              <CategoryButton key={cat} label={labelFor(cat)} count={count} active={selected === cat} onClick={() => setSelected(cat)} />
-            ))}
-          </nav>
-
-          {/* Cards */}
-          <div>
-            {/* Sort controls */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 12, alignItems: "center" }}>
-              <span style={{ fontSize: 11, color: "var(--text-3)", marginRight: 2 }}>Sort</span>
-              {(["subs", "heat", "votes", "newest"] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSort(s)}
-                  style={{ background: sort === s ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "transparent", color: sort === s ? "var(--accent)" : "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
-                >
-                  {SORT_LABELS[s]}
-                </button>
-              ))}
-            </div>
-
-            {isLoading ? (
-              <div className="hub-cards">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="skeleton" style={{ height: 150, borderRadius: 10 }} />
-                ))}
-              </div>
-            ) : visible.length === 0 ? (
-              <div style={{ ...PANEL, textAlign: "center", color: "var(--text-3)" }}>No entries in this category yet.</div>
+        <>
+          {/* Trending videos */}
+          <Section icon={Flame} title="Trending Videos" href="/hub/videos" actionLabel="See all">
+            {trending.isLoading ? (
+              <div className="hub-cards">{[...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ aspectRatio: "16/9", borderRadius: 8 }} />)}</div>
+            ) : videos.length === 0 ? (
+              <Empty text="Trending videos are loading — check back shortly." />
             ) : (
-              <div className="hub-cards">
-                {visible.map((e, idx) => (
-                  <CreatorCard key={e.id} entry={e} rank={idx + 1} />
-                ))}
+              <div className="hub-cards">{videos.slice(0, 6).map((v) => <VideoCard key={v.videoId} v={v} />)}</div>
+            )}
+          </Section>
+
+          {/* Top creators */}
+          <Section icon={TrendingUp} title="Top Creators" href="/rankings" actionLabel="Full rankings">
+            <CreatorRow loading={list.isLoading} items={topCreators} sub={(e) => (e.ytSubscribers != null ? `${formatSubs(e.ytSubscribers)} subs` : labelFor(e.category))} />
+          </Section>
+
+          {/* New this week */}
+          <Section icon={Sparkles} title="New This Week" href="/hub/browse" actionLabel="Browse all">
+            <CreatorRow loading={list.isLoading} items={newest} sub={(e) => labelFor(e.category)} />
+          </Section>
+
+          {/* Tools & resources */}
+          <Section icon={Wrench} title="Tools & Resources" href="/hub/browse" actionLabel="Browse all">
+            {list.isLoading ? (
+              <div className="grid-3col">{[...Array(6)].map((_, i) => <div key={i} className="skeleton" style={{ height: 56, borderRadius: 8 }} />)}</div>
+            ) : (
+              <div className="grid-3col">
+                {tools.map((e) => {
+                  const site = e.links.find((l) => l.platform === "website") ?? e.links[0];
+                  return (
+                    <a
+                      key={e.id}
+                      href={site?.url ?? `/hub/${e.slug}`}
+                      target={site ? "_blank" : undefined}
+                      rel="noopener noreferrer"
+                      style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", textDecoration: "none" }}
+                    >
+                      <Avatar e={e} size={34} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ color: "var(--text)", fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</div>
+                        <div style={{ color: "var(--text-3)", fontSize: 11 }}>{labelFor(e.category)}</div>
+                      </div>
+                    </a>
+                  );
+                })}
               </div>
             )}
-          </div>
-        </div>
+          </Section>
+        </>
       )}
 
-      {showAdd && <AddEntryModal onClose={() => setShowAdd(false)} onSubmitted={() => { setShowAdd(false); void refetch(); }} />}
+      {showAdd && <AddEntryModal onClose={() => setShowAdd(false)} onSubmitted={() => { setShowAdd(false); void list.refetch(); }} />}
     </div>
   );
 }
 
-function CategoryButton({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
+function Section({ icon: Icon, title, href, actionLabel, children }: { icon: LucideIcon; title: string; href: string; actionLabel: string; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-        background: active ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--bg-panel)",
-        border: `1px solid ${active ? "color-mix(in srgb, var(--accent) 35%, transparent)" : "var(--border)"}`,
-        borderRadius: 8, padding: "8px 12px", cursor: "pointer",
-        color: active ? "var(--accent)" : "var(--text-2)", fontSize: 13, fontWeight: 600,
-        whiteSpace: "nowrap", flexShrink: 0, textAlign: "left",
-      }}
-    >
-      <span>{label}</span>
-      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: active ? "var(--accent)" : "var(--text-3)" }}>{count}</span>
-    </button>
+    <section style={{ marginBottom: 28 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <h2 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 700, color: "var(--text)", margin: 0 }}>
+          <Icon size={17} color="var(--accent)" /> {title}
+        </h2>
+        <Link href={href} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}>
+          {actionLabel} <ArrowRight size={13} />
+        </Link>
+      </div>
+      {children}
+    </section>
   );
 }
 
-function CreatorCard({ entry: e, rank }: { entry: Entry; rank: number }) {
-  const top = rank <= 3;
+function CreatorRow({ items, loading, sub }: { items: Entry[]; loading: boolean; sub: (e: Entry) => string }) {
+  if (loading) return <div className="grid-3col">{[...Array(6)].map((_, i) => <div key={i} className="skeleton" style={{ height: 64, borderRadius: 8 }} />)}</div>;
+  if (items.length === 0) return <Empty text="Nothing here yet." />;
   return (
-    <div style={{ ...PANEL, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        <span
-          title={`Rank #${rank}`}
-          style={{
-            fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 800,
-            color: top ? "var(--bg-panel-2)" : "var(--muted)",
-            background: top ? "var(--accent)" : "var(--border)",
-            minWidth: 30, height: 30, borderRadius: 6,
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-          }}
+    <div className="grid-3col">
+      {items.map((e) => (
+        <Link
+          key={e.id}
+          href={`/hub/${e.slug}`}
+          style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 8, padding: 12, textDecoration: "none" }}
         >
-          {rank}
-        </span>
-        <Link href={`/hub/${e.slug}`} style={{ flexShrink: 0 }}>
-          {e.avatarUrl ? (
-            <Image src={e.avatarUrl} alt={e.name} width={52} height={52} style={{ borderRadius: "50%", objectFit: "cover" }} />
-          ) : (
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ImageOff size={24} color="var(--text-3)" />
-            </div>
-          )}
-        </Link>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Link href={`/hub/${e.slug}`} style={{ color: "var(--text)", fontWeight: 700, fontSize: 15, textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {e.name}
-          </Link>
-          <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
-            {labelFor(e.category)}
-            {e.ytSubscribers != null && (
-              <span style={{ color: "var(--muted)" }}> · {formatSubs(e.ytSubscribers)} subs</span>
-            )}
+          <Avatar e={e} size={44} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: "var(--text)", fontSize: 14, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</div>
+            <div style={{ color: "var(--text-3)", fontSize: 12 }}>{sub(e)}</div>
           </div>
-        </div>
-      </div>
-
-      {/* Links */}
-      {e.links.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {e.links.map((l) => {
-            const { Icon, color } = platformMeta(l.platform);
-            return (
-              <a
-                key={l.id}
-                href={l.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={l.platform}
-                style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--bg-panel-2)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 9px", color: "var(--text-2)", fontSize: 11, fontWeight: 600, textDecoration: "none", textTransform: "capitalize" }}
-              >
-                <Icon size={13} color={color} />
-                {l.platform}
-              </a>
-            );
-          })}
-        </div>
-      )}
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-        <Link href={`/hub/${e.slug}`} style={{ fontSize: 12, color: "var(--text-3)", textDecoration: "none", fontWeight: 600 }}>
-          View profile →
         </Link>
-        <VoteControl entryId={e.id} initialScore={e.voteScore} />
-      </div>
+      ))}
     </div>
   );
+}
+
+function Avatar({ e, size }: { e: Entry; size: number }) {
+  return e.avatarUrl ? (
+    <Image src={e.avatarUrl} alt={e.name} width={size} height={size} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+  ) : (
+    <div style={{ width: size, height: size, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <ImageOff size={Math.round(size * 0.5)} color="var(--text-3)" />
+    </div>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 8, padding: 24, textAlign: "center", color: "var(--text-3)", fontSize: 13 }}>{text}</div>;
 }

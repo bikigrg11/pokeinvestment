@@ -9,6 +9,7 @@ import {
   fetchRecentVideos,
   type YTChannelStats,
 } from "@/lib/api/youtube";
+import { getTrendingVideos } from "@/server/services/trending-videos";
 
 const CATEGORIES = [
   "YOUTUBER", "SOCIAL_CREATOR", "STREAMER_BREAKER", "INVESTOR_X", "PODCAST",
@@ -239,6 +240,10 @@ export const creatorsRouter = createTRPCRouter({
     .query(async ({ input }) => {
       return fetchRecentVideos(input.channelId, 6);
     }),
+
+  trendingVideos: publicProcedure.query(async () => {
+    return getTrendingVideos();
+  }),
 
   // ── Admin ──────────────────────────────────────────────────────────────────
   adminList: adminProcedure.query(async ({ ctx }) => {
