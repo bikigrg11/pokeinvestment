@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc/client";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { VoteControl } from "@/components/hub/VoteControl";
 import { LogCallModal } from "@/components/hub/LogCallModal";
+import { ShareButtons } from "@/components/hub/ShareButtons";
 
 const PANEL = { background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 8, padding: 20 };
 const LABEL = { fontSize: 13, color: "var(--muted)", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.8px" };
@@ -76,6 +77,12 @@ export default function EntryProfilePage({ params }: { params: Promise<{ slug: s
           <span style={{ fontSize: 10, color: "var(--text-3)" }}>HEAT</span>
           <VoteControl entryId={entry.id} initialScore={entry.voteScore} />
         </div>
+      </div>
+
+      {/* Share */}
+      <div style={{ ...PANEL, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <span style={{ fontSize: 13, color: "var(--text-2)" }}>Found {entry.name} here? Share the profile.</span>
+        <ShareButtons url={`https://pokeinvestment.vercel.app/hub/${slug}`} title={`${entry.name} — Pokémon Creator Hub`} />
       </div>
 
       {/* Links */}

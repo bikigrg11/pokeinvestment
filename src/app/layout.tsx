@@ -4,8 +4,13 @@ import { TRPCProvider } from "@/components/providers/TRPCProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "PokeInvest — Pokémon TCG Investment Analytics",
-  description: "Bloomberg Terminal for Pokémon TCG cards. Track prices, analyze investments, manage portfolios.",
+  metadataBase: new URL("https://pokeinvestment.vercel.app"),
+  title: {
+    default: "PokeInvest — Pokémon TCG Investment Analytics",
+    template: "%s | PokeInvest",
+  },
+  description: "Bloomberg Terminal for Pokémon TCG cards. Track prices, discover creators & tools, analyze investments, manage portfolios.",
+  openGraph: { siteName: "PokeInvest", type: "website" },
 };
 
 export default function RootLayout({
