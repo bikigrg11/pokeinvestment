@@ -3,7 +3,21 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ImageOff, Plus } from "lucide-react";
+import {
+  ImageOff,
+  Plus,
+  Youtube,
+  Globe,
+  Instagram,
+  Twitch,
+  Twitter,
+  Music2,
+  Mic,
+  MessageCircle,
+  ShoppingBag,
+  Link2,
+  type LucideIcon,
+} from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { VoteControl } from "@/components/hub/VoteControl";
@@ -11,126 +25,230 @@ import { AddEntryModal } from "@/components/hub/AddEntryModal";
 
 const PANEL = { background: "#0c1222", border: "1px solid #1e293b", borderRadius: 8, padding: 20 };
 
-const CATEGORIES = [
-  "YOUTUBER", "SOCIAL_CREATOR", "STREAMER_BREAKER", "INVESTOR_X", "PODCAST",
-  "MARKETPLACE", "LGS", "GROUP_BREAK", "GRADING", "AUTHENTICATION",
-  "TOOL_SITE", "NEWS_BLOG", "COMMUNITY",
-] as const;
-type Category = (typeof CATEGORIES)[number];
-const labelFor = (c: string) => c.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase());
+// Friendly labels for the category enum.
+const CATEGORY_LABELS: Record<string, string> = {
+  YOUTUBER: "YouTubers",
+  SOCIAL_CREATOR: "Social Creators",
+  STREAMER_BREAKER: "Breakers / Streamers",
+  INVESTOR_X: "Investors",
+  PODCAST: "Podcasts",
+  MARKETPLACE: "Marketplaces",
+  LGS: "Local Game Shops",
+  GROUP_BREAK: "Group Breaks",
+  GRADING: "Grading",
+  AUTHENTICATION: "Authentication",
+  TOOL_SITE: "Tools & Data",
+  NEWS_BLOG: "News & Info",
+  COMMUNITY: "Communities",
+};
+const labelFor = (c: string) => CATEGORY_LABELS[c] ?? c;
+
+// platform -> icon + brand color
+const PLATFORM_META: Record<string, { Icon: LucideIcon; color: string }> = {
+  youtube: { Icon: Youtube, color: "#ff0000" },
+  website: { Icon: Globe, color: "#38bdf8" },
+  instagram: { Icon: Instagram, color: "#e1306c" },
+  tiktok: { Icon: Music2, color: "#f1f5f9" },
+  x: { Icon: Twitter, color: "#f1f5f9" },
+  twitter: { Icon: Twitter, color: "#1da1f2" },
+  twitch: { Icon: Twitch, color: "#9146ff" },
+  discord: { Icon: MessageCircle, color: "#5865f2" },
+  podcast: { Icon: Mic, color: "#fbbf24" },
+  whatnot: { Icon: ShoppingBag, color: "#fbbf24" },
+};
+const platformMeta = (p: string) => PLATFORM_META[p.toLowerCase()] ?? { Icon: Link2, color: "#94a3b8" };
+
+function formatSubs(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 100_000 ? 0 : 1)}K`;
+  return String(n);
+}
 
 function heatColor(h: number) {
   return h >= 75 ? "#fbbf24" : h >= 50 ? "#22c55e" : "#94a3b8";
 }
 
+type Entry = {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  avatarUrl: string | null;
+  heatScore: number;
+  voteScore: number;
+  ytSubscribers: number | null;
+  links: { id: string; platform: string; url: string }[];
+};
+
 export default function HubPage() {
-  const [category, setCategory] = useState<Category | "">("");
+  const [selected, setSelected] = useState<string>("all");
   const [sort, setSort] = useState<"heat" | "votes" | "newest">("heat");
   const [showAdd, setShowAdd] = useState(false);
 
-  const { data, isLoading, isError, refetch } = trpc.creators.list.useQuery({
-    category: category || undefined,
-    sort,
-  });
-  const entries = useMemo(() => data ?? [], [data]);
+  const { data, isLoading, isError, refetch } = trpc.creators.list.useQuery({ sort });
+  const entries = useMemo(() => (data ?? []) as Entry[], [data]);
+
+  // Category counts, ordered by frequency (for the side-nav).
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of entries) counts.set(e.category, (counts.get(e.category) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [entries]);
+
+  const visible = useMemo(
+    () => (selected === "all" ? entries : entries.filter((e) => e.category === selected)),
+    [entries, selected]
+  );
 
   return (
     <div className="main-content" style={{ maxWidth: 1440, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+      {/* Page header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#f1f5f9", margin: 0 }}>Creator Hub</h1>
           <p style={{ color: "#64748b", fontSize: 13, margin: "4px 0 0" }}>
-            People &amp; resources across the Pokémon hobby — ranked by community Heat.
+            People &amp; resources across the Pokémon hobby — browse by category, ranked by community Heat.
           </p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          style={{
-            display: "flex", alignItems: "center", gap: 6, background: "#fbbf24",
-            color: "#0a0f1c", border: "none", borderRadius: 6, padding: "8px 14px",
-            fontWeight: 700, fontSize: 13, cursor: "pointer",
-          }}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: "#fbbf24", color: "#0a0f1c", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer", flexShrink: 0 }}
         >
           <Plus size={15} /> Add entry
         </button>
       </div>
 
-      <div style={{ ...PANEL, marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value as Category | "")}
-          style={{ background: "#0a0f1c", color: "#f1f5f9", border: "1px solid #1e293b", borderRadius: 6, padding: "6px 10px" }}
-        >
-          <option value="">All categories</option>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{labelFor(c)}</option>
-          ))}
-        </select>
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as typeof sort)}
-          style={{ background: "#0a0f1c", color: "#f1f5f9", border: "1px solid #1e293b", borderRadius: 6, padding: "6px 10px" }}
-        >
-          <option value="heat">Sort: Heat</option>
-          <option value="votes">Sort: Votes</option>
-          <option value="newest">Sort: Newest</option>
-        </select>
-      </div>
-
       {isError ? (
         <ErrorState message="Failed to load the directory." onRetry={() => void refetch()} />
-      ) : isLoading ? (
-        <div style={PANEL}>
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: 56, marginBottom: 8, borderRadius: 6 }} />
-          ))}
-        </div>
-      ) : entries.length === 0 ? (
-        <div style={{ ...PANEL, textAlign: "center", color: "#64748b" }}>
-          No entries yet — be the first to add one.
-        </div>
       ) : (
-        <div style={{ ...PANEL, padding: 0 }}>
-          {entries.map((e) => (
-            <div
-              key={e.id}
-              style={{
-                display: "flex", alignItems: "center", gap: 14, padding: "12px 16px",
-                borderBottom: "1px solid #1e293b",
-              }}
-            >
-              {e.avatarUrl ? (
-                <Image src={e.avatarUrl} alt={e.name} width={40} height={40} style={{ borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <ImageOff size={20} color="#334155" />
-                </div>
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <Link href={`/hub/${e.slug}`} style={{ color: "#f1f5f9", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
-                  {e.name}
-                </Link>
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
-                  {labelFor(e.category)}
-                  {e.links.length > 0 && ` · ${e.links.map((l) => l.platform).join(", ")}`}
-                </div>
-              </div>
-              <span
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700,
-                  color: heatColor(e.heatScore), background: `${heatColor(e.heatScore)}15`,
-                  padding: "3px 8px", borderRadius: 4,
-                }}
-              >
-                {Math.round(e.heatScore)}
-              </span>
-              <VoteControl entryId={e.id} initialScore={e.voteScore} />
+        <div className="hub-grid">
+          {/* Category side-nav */}
+          <nav className="hub-cats">
+            <CategoryButton label="All" count={entries.length} active={selected === "all"} onClick={() => setSelected("all")} />
+            {categories.map(([cat, count]) => (
+              <CategoryButton key={cat} label={labelFor(cat)} count={count} active={selected === cat} onClick={() => setSelected(cat)} />
+            ))}
+          </nav>
+
+          {/* Cards */}
+          <div>
+            {/* Sort controls */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 12, alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "#64748b", marginRight: 2 }}>Sort</span>
+              {(["heat", "votes", "newest"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSort(s)}
+                  style={{ background: sort === s ? "#fbbf2415" : "transparent", color: sort === s ? "#fbbf24" : "#94a3b8", border: "1px solid #1e293b", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", textTransform: "capitalize" }}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
-          ))}
+
+            {isLoading ? (
+              <div className="hub-cards">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="skeleton" style={{ height: 150, borderRadius: 10 }} />
+                ))}
+              </div>
+            ) : visible.length === 0 ? (
+              <div style={{ ...PANEL, textAlign: "center", color: "#64748b" }}>No entries in this category yet.</div>
+            ) : (
+              <div className="hub-cards">
+                {visible.map((e) => (
+                  <CreatorCard key={e.id} entry={e} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {showAdd && <AddEntryModal onClose={() => setShowAdd(false)} onSubmitted={() => { setShowAdd(false); void refetch(); }} />}
+    </div>
+  );
+}
+
+function CategoryButton({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+        background: active ? "#fbbf2415" : "#0c1222",
+        border: `1px solid ${active ? "#fbbf2455" : "#1e293b"}`,
+        borderRadius: 8, padding: "8px 12px", cursor: "pointer",
+        color: active ? "#fbbf24" : "#cbd5e1", fontSize: 13, fontWeight: 600,
+        whiteSpace: "nowrap", flexShrink: 0, textAlign: "left",
+      }}
+    >
+      <span>{label}</span>
+      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: active ? "#fbbf24" : "#64748b" }}>{count}</span>
+    </button>
+  );
+}
+
+function CreatorCard({ entry: e }: { entry: Entry }) {
+  return (
+    <div style={{ ...PANEL, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <Link href={`/hub/${e.slug}`} style={{ flexShrink: 0 }}>
+          {e.avatarUrl ? (
+            <Image src={e.avatarUrl} alt={e.name} width={52} height={52} style={{ borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ImageOff size={24} color="#334155" />
+            </div>
+          )}
+        </Link>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Link href={`/hub/${e.slug}`} style={{ color: "#f1f5f9", fontWeight: 700, fontSize: 15, textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {e.name}
+          </Link>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+            {labelFor(e.category)}
+            {e.ytSubscribers != null && (
+              <span style={{ color: "#94a3b8" }}> · {formatSubs(e.ytSubscribers)} subs</span>
+            )}
+          </div>
+        </div>
+        <span
+          title="Heat score"
+          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: heatColor(e.heatScore), background: `${heatColor(e.heatScore)}15`, padding: "3px 8px", borderRadius: 4, flexShrink: 0 }}
+        >
+          {Math.round(e.heatScore)}
+        </span>
+      </div>
+
+      {/* Links */}
+      {e.links.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {e.links.map((l) => {
+            const { Icon, color } = platformMeta(l.platform);
+            return (
+              <a
+                key={l.id}
+                href={l.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={l.platform}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: "#0a0f1c", border: "1px solid #1e293b", borderRadius: 6, padding: "5px 9px", color: "#cbd5e1", fontSize: 11, fontWeight: 600, textDecoration: "none", textTransform: "capitalize" }}
+              >
+                <Icon size={13} color={color} />
+                {l.platform}
+              </a>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #1e293b", paddingTop: 10 }}>
+        <Link href={`/hub/${e.slug}`} style={{ fontSize: 12, color: "#64748b", textDecoration: "none", fontWeight: 600 }}>
+          View profile →
+        </Link>
+        <VoteControl entryId={e.id} initialScore={e.voteScore} />
+      </div>
     </div>
   );
 }

@@ -330,3 +330,51 @@ body {
   white-space: nowrap;
   display: block;
 }
+
+/* Creator Hub — category side-nav + card grid layout */
+.hub-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 768px) {
+  .hub-grid {
+    grid-template-columns: 220px 1fr;
+    align-items: start;
+  }
+}
+/* Category list: horizontal scroller on mobile, sticky vertical sidebar on desktop */
+.hub-cats {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hub-cats::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 768px) {
+  .hub-cats {
+    flex-direction: column;
+    position: sticky;
+    top: 72px;
+    overflow: visible;
+  }
+}
+.hub-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .hub-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1280px) {
+  .hub-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

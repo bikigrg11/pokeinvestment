@@ -86,3 +86,45 @@ export async function fetchYouTubeByHandle(handle: string): Promise<YTChannelSta
   const item = data.items?.[0];
   return item ? mapItem(item) : null;
 }
+
+export interface YTVideo {
+  videoId: string;
+  title: string;
+  thumbnail: string | null;
+  publishedAt: string;
+}
+
+interface YTPlaylistItem {
+  snippet?: {
+    title?: string;
+    publishedAt?: string;
+    resourceId?: { videoId?: string };
+    thumbnails?: { medium?: { url?: string }; default?: { url?: string } };
+  };
+}
+
+/**
+ * Recent uploads for a channel. A channel's uploads playlist id is its channel
+ * id with the "UC" prefix swapped for "UU" — so we skip the extra channels.list
+ * lookup and hit playlistItems directly. Returns [] on missing key/error.
+ */
+export async function fetchRecentVideos(channelId: string, max = 6): Promise<YTVideo[]> {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key || !channelId.startsWith("UC")) return [];
+  const uploads = "UU" + channelId.slice(2);
+  const url =
+    `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet` +
+    `&playlistId=${uploads}&maxResults=${max}&key=${key}`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { items?: YTPlaylistItem[] };
+  return (data.items ?? [])
+    .map((it) => ({
+      videoId: it.snippet?.resourceId?.videoId ?? "",
+      title: it.snippet?.title ?? "",
+      thumbnail:
+        it.snippet?.thumbnails?.medium?.url ?? it.snippet?.thumbnails?.default?.url ?? null,
+      publishedAt: it.snippet?.publishedAt ?? "",
+    }))
+    .filter((v) => v.videoId);
+}

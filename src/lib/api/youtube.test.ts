@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { parseChannelInput, fetchYouTubeChannels, fetchYouTubeByHandle } from "./youtube";
+import {
+  parseChannelInput,
+  fetchYouTubeChannels,
+  fetchYouTubeByHandle,
+  fetchRecentVideos,
+} from "./youtube";
 
 describe("parseChannelInput", () => {
   it("extracts a channel id from a /channel/ URL", () => {
@@ -104,5 +109,46 @@ describe("fetchYouTubeByHandle", () => {
     vi.stubEnv("YOUTUBE_API_KEY", "test-key");
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ items: [] }) })));
     expect(await fetchYouTubeByHandle("@nope")).toBeNull();
+  });
+});
+
+describe("fetchRecentVideos", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("queries the UU uploads playlist and maps videos", async () => {
+    vi.stubEnv("YOUTUBE_API_KEY", "test-key");
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            snippet: {
+              title: "Big pull!",
+              publishedAt: "2026-05-01T00:00:00Z",
+              resourceId: { videoId: "vid123" },
+              thumbnails: { medium: { url: "http://thumb" } },
+            },
+          },
+        ],
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await fetchRecentVideos("UCabc123def456ghi789jkl0", 6);
+    // uploads playlist id swaps the UC prefix for UU
+    expect((fetchMock.mock.calls[0][0] as string)).toContain("playlistId=UUabc123def456ghi789jkl0");
+    expect(res).toEqual([
+      { videoId: "vid123", title: "Big pull!", thumbnail: "http://thumb", publishedAt: "2026-05-01T00:00:00Z" },
+    ]);
+  });
+
+  it("returns [] without an api key", async () => {
+    vi.stubEnv("YOUTUBE_API_KEY", "");
+    expect(await fetchRecentVideos("UCabc123def456ghi789jkl0")).toEqual([]);
+  });
+
+  it("returns [] for a non-UC id", async () => {
+    vi.stubEnv("YOUTUBE_API_KEY", "test-key");
+    expect(await fetchRecentVideos("notachannel")).toEqual([]);
   });
 });

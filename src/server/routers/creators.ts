@@ -6,6 +6,7 @@ import {
   parseChannelInput,
   fetchYouTubeChannels,
   fetchYouTubeByHandle,
+  fetchRecentVideos,
   type YTChannelStats,
 } from "@/lib/api/youtube";
 
@@ -231,6 +232,12 @@ export const creatorsRouter = createTRPCRouter({
           priceAtCallC: latest?.marketPrice ?? null,
         },
       });
+    }),
+
+  recentVideos: publicProcedure
+    .input(z.object({ channelId: z.string().min(1) }))
+    .query(async ({ input }) => {
+      return fetchRecentVideos(input.channelId, 6);
     }),
 
   // ── Admin ──────────────────────────────────────────────────────────────────
