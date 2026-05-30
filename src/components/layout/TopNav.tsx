@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -11,17 +12,30 @@ import {
   BarChart3,
   Award,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/market", label: "Market", icon: Activity },
-  { href: "/cards", label: "Cards", icon: Grid3X3 },
-  { href: "/sets", label: "Sets", icon: BookOpen },
-  { href: "/sealed", label: "Sealed", icon: Package },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/grading", label: "Grading", icon: Award },
-  { href: "/hub", label: "Hub", icon: Users },
+type NavItem = { href: string; label: string; icon: LucideIcon };
+type NavSection = { label?: string; items: NavItem[] };
+
+// Nav is grouped into sections; a labeled "Community" section is set apart from
+// the market/analytics tools. Add more community pages to its `items` array.
+const NAV_SECTIONS: NavSection[] = [
+  {
+    items: [
+      { href: "/", label: "Home", icon: Home },
+      { href: "/market", label: "Market", icon: Activity },
+      { href: "/cards", label: "Cards", icon: Grid3X3 },
+      { href: "/sets", label: "Sets", icon: BookOpen },
+      { href: "/sealed", label: "Sealed", icon: Package },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/grading", label: "Grading", icon: Award },
+    ],
+  },
+  {
+    label: "Community",
+    items: [{ href: "/hub", label: "Hub", icon: Users }],
+  },
 ];
 
 export function TopNav() {
@@ -94,41 +108,80 @@ export function TopNav() {
           </span>
         </div>
 
-        {/* Nav items — scrollable on mobile, labeled on desktop */}
+        {/* Nav items — grouped into sections; Community set apart by a divider */}
         <nav
           className="nav-scroll"
-          style={{ display: "flex", gap: 2, flex: 1, justifyContent: "flex-end" }}
+          style={{
+            display: "flex",
+            gap: 2,
+            flex: 1,
+            justifyContent: "flex-end",
+            alignItems: "center",
+          }}
         >
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const isActive =
-              href === "/"
-                ? pathname === "/"
-                : pathname === href || pathname.startsWith(href + "/");
-            return (
-              <Link
-                key={href}
-                href={href}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "8px 10px",
-                  borderRadius: 6,
-                  background: isActive ? "#fbbf2415" : "transparent",
-                  color: isActive ? "#fbbf24" : "#64748b",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  transition: "all 0.15s",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                }}
-              >
-                <Icon size={14} />
-                <span className="hide-mobile">{label}</span>
-              </Link>
-            );
-          })}
+          {NAV_SECTIONS.map((section, si) => (
+            <Fragment key={section.label ?? si}>
+              {si > 0 && (
+                <div
+                  aria-hidden
+                  style={{
+                    width: 1,
+                    height: 20,
+                    background: "#1e293b",
+                    margin: "0 8px",
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+              {section.label && (
+                <span
+                  className="hide-mobile"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "#475569",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.6px",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                    marginRight: 2,
+                  }}
+                >
+                  {section.label}
+                </span>
+              )}
+              {section.items.map(({ href, label, icon: Icon }) => {
+                const isActive =
+                  href === "/"
+                    ? pathname === "/"
+                    : pathname === href || pathname.startsWith(href + "/");
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      background: isActive ? "#fbbf2415" : "transparent",
+                      color: isActive ? "#fbbf24" : "#64748b",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      textDecoration: "none",
+                      transition: "all 0.15s",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon size={14} />
+                    <span className="hide-mobile">{label}</span>
+                  </Link>
+                );
+              })}
+            </Fragment>
+          ))}
         </nav>
       </div>
     </header>

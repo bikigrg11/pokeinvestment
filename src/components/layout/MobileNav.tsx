@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,15 +10,21 @@ import {
   Award,
   Filter,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/market", label: "Market", icon: BarChart3 },
-  { href: "/cards", label: "Cards", icon: LayoutGrid },
-  { href: "/grading", label: "Grading", icon: Award },
-  { href: "/analytics", label: "Screener", icon: Filter },
-  { href: "/hub", label: "Hub", icon: Users },
+type NavItem = { href: string; label: string; icon: LucideIcon };
+
+// Two sections: market tools, then a Community group (set apart by a divider).
+const NAV_SECTIONS: NavItem[][] = [
+  [
+    { href: "/", label: "Home", icon: Home },
+    { href: "/market", label: "Market", icon: BarChart3 },
+    { href: "/cards", label: "Cards", icon: LayoutGrid },
+    { href: "/grading", label: "Grading", icon: Award },
+    { href: "/analytics", label: "Screener", icon: Filter },
+  ],
+  [{ href: "/hub", label: "Hub", icon: Users }],
 ];
 
 export function MobileNav() {
@@ -39,32 +46,48 @@ export function MobileNav() {
         zIndex: 50,
       }}
     >
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-        const isActive =
-          href === "/"
-            ? pathname === "/"
-            : pathname === href || pathname.startsWith(href + "/");
-        return (
-          <Link
-            key={href}
-            href={href}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 2,
-              padding: "4px 8px",
-              color: isActive ? "var(--accent)" : "var(--text-3)",
-              textDecoration: "none",
-              fontSize: 10,
-              fontWeight: 600,
-            }}
-          >
-            <Icon size={18} />
-            {label}
-          </Link>
-        );
-      })}
+      {NAV_SECTIONS.map((items, si) => (
+        <Fragment key={si}>
+          {si > 0 && (
+            <div
+              aria-hidden
+              style={{
+                width: 1,
+                height: 26,
+                background: "var(--border)",
+                flexShrink: 0,
+                alignSelf: "center",
+              }}
+            />
+          )}
+          {items.map(({ href, label, icon: Icon }) => {
+            const isActive =
+              href === "/"
+                ? pathname === "/"
+                : pathname === href || pathname.startsWith(href + "/");
+            return (
+              <Link
+                key={href}
+                href={href}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                  padding: "4px 8px",
+                  color: isActive ? "var(--accent)" : "var(--text-3)",
+                  textDecoration: "none",
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
+              >
+                <Icon size={18} />
+                {label}
+              </Link>
+            );
+          })}
+        </Fragment>
+      ))}
     </nav>
   );
 }
