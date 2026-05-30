@@ -22,7 +22,7 @@ import {
 } from "recharts";
 import Link from "next/link";
 import Image from "next/image";
-import { Flame, ArrowRight, ImageOff } from "lucide-react";
+import { Flame, ImageOff } from "lucide-react";
 import { VideoCard, type TrendingVideo } from "@/components/hub/VideoCard";
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -236,7 +236,8 @@ export default function DashboardPage() {
       : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="dash-split">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
       {/* ─── Hero: Today's Top Buy ─── */}
       {topBuy && (
         <div
@@ -671,7 +672,10 @@ export default function DashboardPage() {
         </Panel>
       </div>
 
-      <CommunitySection />
+      </div>
+      <aside className="dash-rail">
+        <CommunitySection />
+      </aside>
     </div>
   );
 }
@@ -699,35 +703,30 @@ function CommunitySection() {
   const utils = api.useUtils();
 
   const allEntries = (list.data ?? []) as MiniEntry[];
-  const videos = ((trending.data ?? []) as TrendingVideo[]).slice(0, 4);
+  const videos = ((trending.data ?? []) as TrendingVideo[]).slice(0, 3);
   const creators = [...allEntries]
     .filter((e) => e.ytSubscribers != null)
     .sort((a, b) => (b.ytSubscribers ?? 0) - (a.ytSubscribers ?? 0))
     .slice(0, 5);
   const newest = [...allEntries]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 6);
+    .slice(0, 4);
 
   return (
-    <div style={{ marginTop: 28 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
-        <h2 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, fontWeight: 700, color: "var(--text)", margin: 0 }}>
-          <Flame size={18} color="var(--accent)" /> Discover the Community
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <h2 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 700, color: "var(--text)", margin: 0 }}>
+          <Flame size={17} color="var(--accent)" /> Community
         </h2>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link href="/hub/browse" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}>
-            Browse all <ArrowRight size={13} />
-          </Link>
-          <button
-            onClick={() => setShowAdd(true)}
-            style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--accent)", color: "var(--bg-panel-2)", border: "none", borderRadius: "var(--radius)", padding: "7px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
-          >
-            + Add a creator or tool
-          </button>
-        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--accent)", color: "var(--bg-panel-2)", border: "none", borderRadius: "var(--radius)", padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+        >
+          + Add
+        </button>
       </div>
 
-      <div className="grid-2col">
+      <div style={{ display: "contents" }}>
         {/* Trending videos */}
         <Panel>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -737,7 +736,7 @@ function CommunitySection() {
           {videos.length === 0 ? (
             <div style={{ color: "var(--text-3)", fontSize: 13 }}>Loading trending videos…</div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {videos.map((v) => <VideoCard key={v.videoId} v={v} />)}
             </div>
           )}
@@ -777,7 +776,7 @@ function CommunitySection() {
       </div>
 
       {/* New this week */}
-      <div style={{ marginTop: 16 }}>
+      <div style={{ display: "contents" }}>
         <Panel>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)" }}>New This Week</span>
@@ -786,7 +785,7 @@ function CommunitySection() {
           {newest.length === 0 ? (
             <div style={{ color: "var(--text-3)", fontSize: 13 }}>Loading…</div>
           ) : (
-            <div className="grid-3col">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {newest.map((e) => (
                 <Link key={e.id} href={`/hub/${e.slug}`} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
                   {e.avatarUrl ? (
