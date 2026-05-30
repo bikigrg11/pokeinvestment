@@ -230,21 +230,11 @@ After running, the following features unlock:
 
 **Storage note:** 52 weeks × 20,237 cards ≈ 1M rows. This fits Neon free tier (512 MB) with some headroom. Increasing WEEKS to 104 requires Neon Launch plan ($19/mo).
 
-## Layout — Top Navigation
+## Layout — Navigation
 
-The dashboard uses a **horizontal top nav** (not a sidebar), matching the prototype. Nav lives in `src/components/layout/TopNav.tsx`. The `(dashboard)/layout.tsx` renders `<TopNav />` above `<main>` — not the old Sidebar+Header.
+The dashboard nav is a **left `Sidebar`** (`src/components/layout/Sidebar.tsx`) on desktop and a fixed bottom **`MobileNav`** (`MobileNav.tsx`) on mobile. `(dashboard)/layout.tsx` renders `<Sidebar /> + <Header /> + <MobileHeader /> + <MobileNav />`. (There is **no** `TopNav` — that component was removed; do not re-add it or edit nav there.)
 
-Nav items (in order):
-```typescript
-{ href: "/",          label: "Home",      icon: Home     }
-{ href: "/market",    label: "Market",    icon: Activity }
-{ href: "/cards",     label: "Cards",     icon: Grid3X3  }
-{ href: "/sets",      label: "Sets",      icon: BookOpen }
-{ href: "/sealed",    label: "Sealed",    icon: Package  }
-{ href: "/portfolio", label: "Portfolio", icon: Briefcase}
-{ href: "/analytics", label: "Analytics", icon: BarChart3}
-{ href: "/grading",   label: "Grading",   icon: Award    }
-```
+`Sidebar` `NAV_SECTIONS` (in order): a main section — Dashboard `/`, Market, Cards DB `/cards`, Grading, Screener `/analytics`, Sets, Sealed — then a **Community** section containing Creator Hub `/hub`. `MobileNav` carries a parallel subset; **update both** when changing nav.
 
 Prototype exact colors (not Tailwind defaults — use these hex values):
 - Page background: `#080d19`
@@ -555,7 +545,7 @@ Also available: `.hide-mobile` (hidden on <640px), `.nav-scroll` (horizontal scr
 ## Mobile Responsive Rules
 
 - Use CSS grid utility classes (above) instead of inline `gridTemplateColumns` for any multi-column layout — the inline style always wins and breaks mobile.
-- TopNav hides the wordmark + BETA badge on mobile (`.hide-mobile`), shows icon-only nav links that scroll horizontally (`.nav-scroll`).
+- Desktop `Sidebar` is hidden on mobile (`.sidebar` media query); `MobileNav` (fixed bottom bar) + `MobileHeader` take over. Keep `Sidebar` and `MobileNav` nav lists in sync.
 - Never rely on `repeat(N, 1fr)` inline for grids that need to stack on mobile — convert to a CSS class or add a matching `@media` rule in globals.css.
 
 ## Error / Loading / Empty State Patterns
