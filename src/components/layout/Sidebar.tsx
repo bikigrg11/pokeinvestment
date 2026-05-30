@@ -3,14 +3,12 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { trpc } from "@/lib/trpc/client";
 import {
   Home,
   BarChart3,
   Award,
   Users,
   Trophy,
-  Compass,
   Video,
   type LucideIcon,
 } from "lucide-react";
@@ -29,7 +27,6 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: "Community",
     items: [
-      { href: "/hub", label: "Discover", icon: Compass },
       { href: "/hub/browse", label: "Browse", icon: Users },
       { href: "/hub/videos", label: "Trending Videos", icon: Video },
       { href: "/rankings", label: "Rankings", icon: Trophy },
@@ -39,10 +36,6 @@ const NAV_SECTIONS: NavSection[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { data } = trpc.analytics.dashboard.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
-  const sentiment = data?.sentiment;
-  const sentimentColor = sentiment?.label === "Bullish" ? "var(--pos)" : sentiment?.label === "Bearish" ? "var(--neg)" : "var(--text-2)";
-  const trackedCards = data?.stats?.trackedCards;
 
   return (
     <aside
@@ -159,45 +152,6 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Market Status Footer */}
-      <div
-        style={{
-          margin: "8px 4px 0",
-          padding: "14px 12px",
-          background: "var(--bg-panel-2)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 9,
-            color: "var(--text-3)",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "1.2px",
-            marginBottom: 8,
-          }}
-        >
-          MARKET STATUS
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: sentimentColor,
-              display: "inline-block",
-              boxShadow: `0 0 6px ${sentimentColor}`,
-            }}
-          />
-          <span style={{ fontSize: 13, fontWeight: 700, color: sentimentColor }}>{sentiment?.label ?? "—"}</span>
-        </div>
-        <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 4, fontFamily: "var(--font-mono)" }}>
-          {trackedCards != null ? `${trackedCards.toLocaleString()} cards tracked` : "Loading..."}
-        </div>
-      </div>
     </aside>
   );
 }

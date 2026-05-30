@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { trpc as api } from "@/lib/trpc/client";
+import { AddEntryModal } from "@/components/hub/AddEntryModal";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { BuyScoreRing } from "@/components/ui/BuyScoreRing";
 import { Pill } from "@/components/ui/Pill";
@@ -681,6 +682,7 @@ type MiniEntry = {
   name: string;
   avatarUrl: string | null;
   ytSubscribers: number | null;
+  createdAt: string | Date;
 };
 
 function fmtSubs(n: number): string {
@@ -689,26 +691,40 @@ function fmtSubs(n: number): string {
   return String(n);
 }
 
-/** Community discovery surfaced on the dashboard: trending videos + top creators. */
+/** Community discovery folded into the dashboard: trending videos, top creators, new this week. */
 function CommunitySection() {
+  const [showAdd, setShowAdd] = useState(false);
   const trending = api.creators.trendingVideos.useQuery(undefined, { staleTime: 10 * 60 * 1000 });
   const list = api.creators.list.useQuery({});
+  const utils = api.useUtils();
 
+  const allEntries = (list.data ?? []) as MiniEntry[];
   const videos = ((trending.data ?? []) as TrendingVideo[]).slice(0, 4);
-  const creators = ((list.data ?? []) as MiniEntry[])
+  const creators = [...allEntries]
     .filter((e) => e.ytSubscribers != null)
     .sort((a, b) => (b.ytSubscribers ?? 0) - (a.ytSubscribers ?? 0))
     .slice(0, 5);
+  const newest = [...allEntries]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 6);
 
   return (
     <div style={{ marginTop: 28 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
         <h2 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, fontWeight: 700, color: "var(--text)", margin: 0 }}>
-          <Flame size={18} color="var(--accent)" /> From the Community
+          <Flame size={18} color="var(--accent)" /> Discover the Community
         </h2>
-        <Link href="/hub" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}>
-          Open Discover <ArrowRight size={13} />
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Link href="/hub/browse" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}>
+            Browse all <ArrowRight size={13} />
+          </Link>
+          <button
+            onClick={() => setShowAdd(true)}
+            style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--accent)", color: "var(--bg-panel-2)", border: "none", borderRadius: "var(--radius)", padding: "7px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+          >
+            + Add a creator or tool
+          </button>
+        </div>
       </div>
 
       <div className="grid-2col">
@@ -759,6 +775,38 @@ function CommunitySection() {
           )}
         </Panel>
       </div>
+
+      {/* New this week */}
+      <div style={{ marginTop: 16 }}>
+        <Panel>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)" }}>New This Week</span>
+            <Link href="/hub/browse" style={{ fontSize: 11, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}>Browse all →</Link>
+          </div>
+          {newest.length === 0 ? (
+            <div style={{ color: "var(--text-3)", fontSize: 13 }}>Loading…</div>
+          ) : (
+            <div className="grid-3col">
+              {newest.map((e) => (
+                <Link key={e.id} href={`/hub/${e.slug}`} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+                  {e.avatarUrl ? (
+                    <Image src={e.avatarUrl} alt={e.name} width={32} height={32} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <ImageOff size={15} color="var(--text-3)" />
+                    </div>
+                  )}
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      {showAdd && (
+        <AddEntryModal onClose={() => setShowAdd(false)} onSubmitted={() => { setShowAdd(false); void utils.creators.list.invalidate(); }} />
+      )}
     </div>
   );
 }
