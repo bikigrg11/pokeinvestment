@@ -8,6 +8,7 @@ import {
   LayoutGrid,
   Award,
   Filter,
+  Users,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/cards", label: "Cards", icon: LayoutGrid },
   { href: "/grading", label: "Grading", icon: Award },
   { href: "/analytics", label: "Screener", icon: Filter },
+  { href: "/hub", label: "Hub", icon: Users },
 ];
 
 export function MobileNav() {

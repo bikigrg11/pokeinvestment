@@ -7,6 +7,7 @@ import {
   extractPriceVariants,
   dollarsToCents,
 } from "@/lib/api/pokemontcg";
+import { runCreatorSync } from "@/server/services/creator-sync";
 
 // Allow up to 5 min — the longest Vercel functions can run.
 export const maxDuration = 300;
@@ -195,6 +196,15 @@ export async function GET(req: Request) {
     // Recompute the index off the freshly-refreshed view.
     const indexValue = await recomputeIndexSnapshot(today);
 
+    // Piggyback the creator Heat sync onto the daily cron (Hobby cron-count limit).
+    // Failure here must not fail the price sync, so swallow + log.
+    let creatorSync: Awaited<ReturnType<typeof runCreatorSync>> | null = null;
+    try {
+      creatorSync = await runCreatorSync();
+    } catch (e) {
+      console.error("[cron/sync-prices] creator sync failed", (e as Error).message);
+    }
+
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
     return NextResponse.json({
@@ -203,6 +213,7 @@ export async function GET(req: Request) {
       cardsFetched: totalFetched,
       apiCalls,
       indexValue,
+      creatorSync,
       elapsedSeconds: Number(elapsed),
       timestamp: new Date().toISOString(),
     });
