@@ -23,7 +23,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { VoteControl } from "@/components/hub/VoteControl";
 import { AddEntryModal } from "@/components/hub/AddEntryModal";
 
-const PANEL = { background: "#0c1222", border: "1px solid #1e293b", borderRadius: 8, padding: 20 };
+const PANEL = { background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 8, padding: 20 };
 
 // Friendly labels for the category enum.
 const CATEGORY_LABELS: Record<string, string> = {
@@ -48,15 +48,15 @@ const PLATFORM_META: Record<string, { Icon: LucideIcon; color: string }> = {
   youtube: { Icon: Youtube, color: "#ff0000" },
   website: { Icon: Globe, color: "#38bdf8" },
   instagram: { Icon: Instagram, color: "#e1306c" },
-  tiktok: { Icon: Music2, color: "#f1f5f9" },
-  x: { Icon: Twitter, color: "#f1f5f9" },
+  tiktok: { Icon: Music2, color: "var(--text)" },
+  x: { Icon: Twitter, color: "var(--text)" },
   twitter: { Icon: Twitter, color: "#1da1f2" },
   twitch: { Icon: Twitch, color: "#9146ff" },
   discord: { Icon: MessageCircle, color: "#5865f2" },
-  podcast: { Icon: Mic, color: "#fbbf24" },
-  whatnot: { Icon: ShoppingBag, color: "#fbbf24" },
+  podcast: { Icon: Mic, color: "var(--accent)" },
+  whatnot: { Icon: ShoppingBag, color: "var(--accent)" },
 };
-const platformMeta = (p: string) => PLATFORM_META[p.toLowerCase()] ?? { Icon: Link2, color: "#94a3b8" };
+const platformMeta = (p: string) => PLATFORM_META[p.toLowerCase()] ?? { Icon: Link2, color: "var(--muted)" };
 
 function formatSubs(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
@@ -112,14 +112,14 @@ export default function HubPage() {
       {/* Page header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#f1f5f9", margin: 0 }}>Creator Hub</h1>
-          <p style={{ color: "#64748b", fontSize: 13, margin: "4px 0 0" }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text)", margin: 0 }}>Creator Hub</h1>
+          <p style={{ color: "var(--text-3)", fontSize: 13, margin: "4px 0 0" }}>
             People &amp; resources across the Pokémon hobby — browse by category, ranked by community Heat.
           </p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          style={{ display: "flex", alignItems: "center", gap: 6, background: "#fbbf24", color: "#0a0f1c", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer", flexShrink: 0 }}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--accent)", color: "var(--bg-panel-2)", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer", flexShrink: 0 }}
         >
           <Plus size={15} /> Add entry
         </button>
@@ -141,12 +141,12 @@ export default function HubPage() {
           <div>
             {/* Sort controls */}
             <div style={{ display: "flex", gap: 6, marginBottom: 12, alignItems: "center" }}>
-              <span style={{ fontSize: 11, color: "#64748b", marginRight: 2 }}>Sort</span>
+              <span style={{ fontSize: 11, color: "var(--text-3)", marginRight: 2 }}>Sort</span>
               {(["subs", "heat", "votes", "newest"] as const).map((s) => (
                 <button
                   key={s}
                   onClick={() => setSort(s)}
-                  style={{ background: sort === s ? "#fbbf2415" : "transparent", color: sort === s ? "#fbbf24" : "#94a3b8", border: "1px solid #1e293b", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                  style={{ background: sort === s ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "transparent", color: sort === s ? "var(--accent)" : "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
                 >
                   {SORT_LABELS[s]}
                 </button>
@@ -160,7 +160,7 @@ export default function HubPage() {
                 ))}
               </div>
             ) : visible.length === 0 ? (
-              <div style={{ ...PANEL, textAlign: "center", color: "#64748b" }}>No entries in this category yet.</div>
+              <div style={{ ...PANEL, textAlign: "center", color: "var(--text-3)" }}>No entries in this category yet.</div>
             ) : (
               <div className="hub-cards">
                 {visible.map((e, idx) => (
@@ -183,15 +183,15 @@ function CategoryButton({ label, count, active, onClick }: { label: string; coun
       onClick={onClick}
       style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-        background: active ? "#fbbf2415" : "#0c1222",
-        border: `1px solid ${active ? "#fbbf2455" : "#1e293b"}`,
+        background: active ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--bg-panel)",
+        border: `1px solid ${active ? "color-mix(in srgb, var(--accent) 35%, transparent)" : "var(--border)"}`,
         borderRadius: 8, padding: "8px 12px", cursor: "pointer",
-        color: active ? "#fbbf24" : "#cbd5e1", fontSize: 13, fontWeight: 600,
+        color: active ? "var(--accent)" : "var(--text-2)", fontSize: 13, fontWeight: 600,
         whiteSpace: "nowrap", flexShrink: 0, textAlign: "left",
       }}
     >
       <span>{label}</span>
-      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: active ? "#fbbf24" : "#64748b" }}>{count}</span>
+      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: active ? "var(--accent)" : "var(--text-3)" }}>{count}</span>
     </button>
   );
 }
@@ -205,8 +205,8 @@ function CreatorCard({ entry: e, rank }: { entry: Entry; rank: number }) {
           title={`Rank #${rank}`}
           style={{
             fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 800,
-            color: top ? "#0a0f1c" : "#94a3b8",
-            background: top ? "#fbbf24" : "#1e293b",
+            color: top ? "var(--bg-panel-2)" : "var(--muted)",
+            background: top ? "var(--accent)" : "var(--border)",
             minWidth: 30, height: 30, borderRadius: 6,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}
@@ -217,19 +217,19 @@ function CreatorCard({ entry: e, rank }: { entry: Entry; rank: number }) {
           {e.avatarUrl ? (
             <Image src={e.avatarUrl} alt={e.name} width={52} height={52} style={{ borderRadius: "50%", objectFit: "cover" }} />
           ) : (
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ImageOff size={24} color="#334155" />
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ImageOff size={24} color="var(--text-3)" />
             </div>
           )}
         </Link>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Link href={`/hub/${e.slug}`} style={{ color: "#f1f5f9", fontWeight: 700, fontSize: 15, textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <Link href={`/hub/${e.slug}`} style={{ color: "var(--text)", fontWeight: 700, fontSize: 15, textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {e.name}
           </Link>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
             {labelFor(e.category)}
             {e.ytSubscribers != null && (
-              <span style={{ color: "#94a3b8" }}> · {formatSubs(e.ytSubscribers)} subs</span>
+              <span style={{ color: "var(--muted)" }}> · {formatSubs(e.ytSubscribers)} subs</span>
             )}
           </div>
         </div>
@@ -247,7 +247,7 @@ function CreatorCard({ entry: e, rank }: { entry: Entry; rank: number }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 title={l.platform}
-                style={{ display: "flex", alignItems: "center", gap: 5, background: "#0a0f1c", border: "1px solid #1e293b", borderRadius: 6, padding: "5px 9px", color: "#cbd5e1", fontSize: 11, fontWeight: 600, textDecoration: "none", textTransform: "capitalize" }}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--bg-panel-2)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 9px", color: "var(--text-2)", fontSize: 11, fontWeight: 600, textDecoration: "none", textTransform: "capitalize" }}
               >
                 <Icon size={13} color={color} />
                 {l.platform}
@@ -257,8 +257,8 @@ function CreatorCard({ entry: e, rank }: { entry: Entry; rank: number }) {
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #1e293b", paddingTop: 10 }}>
-        <Link href={`/hub/${e.slug}`} style={{ fontSize: 12, color: "#64748b", textDecoration: "none", fontWeight: 600 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+        <Link href={`/hub/${e.slug}`} style={{ fontSize: 12, color: "var(--text-3)", textDecoration: "none", fontWeight: 600 }}>
           View profile →
         </Link>
         <VoteControl entryId={e.id} initialScore={e.voteScore} />

@@ -12,8 +12,8 @@ const CATEGORIES = [
 const labelFor = (c: string) => c.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase());
 
 const FIELD = {
-  width: "100%", background: "#0a0f1c", color: "#f1f5f9",
-  border: "1px solid #1e293b", borderRadius: 6, padding: "8px 10px", marginTop: 4,
+  width: "100%", background: "var(--bg-panel-2)", color: "var(--text)",
+  border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", marginTop: 4,
 };
 
 export function AddEntryModal({ onClose, onSubmitted }: { onClose: () => void; onSubmitted: () => void }) {
@@ -50,44 +50,44 @@ export function AddEntryModal({ onClose, onSubmitted }: { onClose: () => void; o
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: "#0c1222", border: "1px solid #1e293b", borderRadius: 10, padding: 24, width: 440, maxWidth: "100%" }}
+        style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, width: 440, maxWidth: "100%" }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Add to the Hub</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: "var(--text)", margin: 0 }}>Add to the Hub</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)" }}>
             <X size={18} />
           </button>
         </div>
 
-        <label style={{ fontSize: 12, color: "#94a3b8" }}>
+        <label style={{ fontSize: 12, color: "var(--muted)" }}>
           Name *
           <input value={name} onChange={(e) => setName(e.target.value)} style={FIELD} />
         </label>
-        <label style={{ fontSize: 12, color: "#94a3b8", display: "block", marginTop: 12 }}>
+        <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginTop: 12 }}>
           Category *
           <select value={category} onChange={(e) => setCategory(e.target.value as typeof category)} style={FIELD}>
             {CATEGORIES.map((c) => <option key={c} value={c}>{labelFor(c)}</option>)}
           </select>
         </label>
-        <label style={{ fontSize: 12, color: "#94a3b8", display: "block", marginTop: 12 }}>
+        <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginTop: 12 }}>
           YouTube URL (optional — unlocks Heat tracking)
           <input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/@…" style={FIELD} />
         </label>
-        <label style={{ fontSize: 12, color: "#94a3b8", display: "block", marginTop: 12 }}>
+        <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginTop: 12 }}>
           Website / other link (optional)
           <input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://…" style={FIELD} />
         </label>
-        <label style={{ fontSize: 12, color: "#94a3b8", display: "block", marginTop: 12 }}>
+        <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginTop: 12 }}>
           Bio (optional)
           <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} style={{ ...FIELD, resize: "vertical" }} />
         </label>
 
-        {error && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 12 }}>{error}</p>}
+        {error && <p style={{ color: "var(--neg)", fontSize: 12, marginTop: 12 }}>{error}</p>}
 
         <button
           onClick={handleSubmit}
           disabled={submit.isPending}
-          style={{ width: "100%", marginTop: 18, background: "#fbbf24", color: "#0a0f1c", border: "none", borderRadius: 6, padding: "10px", fontWeight: 700, cursor: "pointer" }}
+          style={{ width: "100%", marginTop: 18, background: "var(--accent)", color: "var(--bg-panel-2)", border: "none", borderRadius: 6, padding: "10px", fontWeight: 700, cursor: "pointer" }}
         >
           {submit.isPending ? "Submitting…" : "Submit"}
         </button>

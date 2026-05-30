@@ -104,7 +104,7 @@ export function Header() {
               transition: "all 0.15s",
             }}
           >
-            Day
+            Light
           </button>
           <button
             onClick={theme === "day" ? toggle : undefined}
@@ -123,7 +123,7 @@ export function Header() {
               transition: "all 0.15s",
             }}
           >
-            Pro
+            Dark
           </button>
         </div>
 
