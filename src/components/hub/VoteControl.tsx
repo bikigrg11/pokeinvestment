@@ -23,7 +23,7 @@ export function VoteControl({ entryId, initialScore }: { entryId: string; initia
         onClick={() => cast(1)}
         disabled={pending}
         aria-label="Upvote"
-        style={{ background: "none", border: "none", cursor: "pointer", color: "#22c55e", padding: 2 }}
+        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pos)", padding: 2 }}
       >
         <ChevronUp size={16} />
       </button>
@@ -31,7 +31,7 @@ export function VoteControl({ entryId, initialScore }: { entryId: string; initia
         style={{
           fontFamily: "'JetBrains Mono', 'SF Mono', monospace",
           fontSize: 13,
-          color: score > 0 ? "#22c55e" : score < 0 ? "#ef4444" : "#94a3b8",
+          color: score > 0 ? "var(--pos)" : score < 0 ? "var(--neg)" : "var(--muted)",
           minWidth: 24,
           textAlign: "center",
         }}
@@ -42,7 +42,7 @@ export function VoteControl({ entryId, initialScore }: { entryId: string; initia
         onClick={() => cast(-1)}
         disabled={pending}
         aria-label="Downvote"
-        style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: 2 }}
+        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--neg)", padding: 2 }}
       >
         <ChevronDown size={16} />
       </button>

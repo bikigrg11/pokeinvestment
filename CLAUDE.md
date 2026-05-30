@@ -187,7 +187,7 @@ Key components are wrapped with `React.memo` to prevent unnecessary re-renders:
 - TCGPlayer prices from pokemontcg.io come nested under variant names (holofoil, reverseHolofoil, normal). Always try multiple variants.
 - Not all cards have prices — filter these out in market views, show "No price data" in detail views.
 - The Pokemon 250 Index is calculated from the top 250 cards by market cap, equal-weighted, rebalanced monthly. Calculation logic is in `server/services/index.ts`.
-- Dark mode only — the entire UI is dark theme. Do not add light mode.
+- **Two themes** — Light ("day", default `:root`) and Dark ("pro", `[data-theme="pro"]`), toggled in `Header.tsx` via `ThemeProvider`. Colors are CSS variables defined in `globals.css` (`--bg-page`, `--bg-panel`, `--bg-panel-2`, `--border`, `--text`, `--text-2`, `--text-3`, `--muted`, `--accent`, `--accent-2`, `--pos`, `--neg`, `--neu`). **Always style with `var(--…)`, never hardcoded hex** — hardcoded colors don't switch with the theme (this broke the Creator Hub in light mode). Exceptions: brand colors (YouTube red etc.) and Recharts `stroke`/`fill` (SVG attributes don't resolve `var()` — use literals readable on both themes).
 - `src/app/page.tsx` must NOT exist — the dashboard route group `(dashboard)/page.tsx` serves `/`. Having both causes a conflict.
 - tRPC uses superjson transformer — both server (`src/lib/trpc/index.ts`) and client (`TRPCProvider.tsx`) must specify `transformer: superjson`.
 - NextAuth v5 uses JWT strategy (not database sessions) to avoid needing a DB connection on every request. Session callback maps `token.id` → `session.user.id`.
@@ -246,8 +246,7 @@ Prototype exact colors (not Tailwind defaults — use these hex values):
 
 ## Style Rules
 
-- Tailwind only, no custom CSS files
-- Use inline `style={{}}` for exact hex colors from the prototype (Tailwind's slate palette is close but not exact)
+- Tailwind for layout; colors via the CSS theme variables in `globals.css` (`var(--bg-panel)`, `var(--text)`, `var(--accent)`, …) using inline `style={{}}`. **Do not hardcode hex** for themeable surfaces/text/borders — it won't follow the Light/Dark toggle.
 - Financial numbers: `fontFamily: "'JetBrains Mono', 'SF Mono', monospace"` — apply inline, not via class
 - Panel style: `background: "#0c1222", border: "1px solid #1e293b", borderRadius: 8, padding: 20`
 - Section label style: `fontSize: 13, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.8px"`

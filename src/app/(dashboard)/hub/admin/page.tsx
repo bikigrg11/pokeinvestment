@@ -8,7 +8,7 @@ export default async function HubAdminPage() {
   if (!isAdmin) {
     return (
       <div className="main-content" style={{ maxWidth: 800, margin: "0 auto" }}>
-        <div style={{ background: "#0c1222", border: "1px solid #1e293b", borderRadius: 8, padding: 40, textAlign: "center", color: "#64748b" }}>
+        <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 8, padding: 40, textAlign: "center", color: "var(--text-3)" }}>
           Admin access required.
         </div>
       </div>

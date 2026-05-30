@@ -5,8 +5,8 @@ import { X } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 
 const FIELD = {
-  width: "100%", background: "#0a0f1c", color: "#f1f5f9",
-  border: "1px solid #1e293b", borderRadius: 6, padding: "8px 10px", marginTop: 4,
+  width: "100%", background: "var(--bg-panel-2)", color: "var(--text)",
+  border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", marginTop: 4,
 };
 
 export function LogCallModal({ entryId, onClose, onLogged }: { entryId: string; onClose: () => void; onLogged: () => void }) {
@@ -33,13 +33,13 @@ export function LogCallModal({ entryId, onClose, onLogged }: { entryId: string; 
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#0c1222", border: "1px solid #1e293b", borderRadius: 10, padding: 24, width: 440, maxWidth: "100%" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 10, padding: 24, width: 440, maxWidth: "100%" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Log a call</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}><X size={18} /></button>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: "var(--text)", margin: 0 }}>Log a call</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)" }}><X size={18} /></button>
         </div>
 
-        <label style={{ fontSize: 12, color: "#94a3b8" }}>
+        <label style={{ fontSize: 12, color: "var(--muted)" }}>
           Search a card
           <input value={query} onChange={(e) => { setQuery(e.target.value); setCardId(null); }} style={FIELD} />
         </label>
@@ -50,7 +50,7 @@ export function LogCallModal({ entryId, onClose, onLogged }: { entryId: string; 
               <button
                 key={c.id}
                 onClick={() => { setCardId(c.id); setQuery(c.name); }}
-                style={{ display: "block", width: "100%", textAlign: "left", background: cardId === c.id ? "#fbbf2415" : "transparent", color: "#f1f5f9", border: "none", padding: "6px 8px", borderRadius: 4, cursor: "pointer", fontSize: 13 }}
+                style={{ display: "block", width: "100%", textAlign: "left", background: cardId === c.id ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "transparent", color: "var(--text)", border: "none", padding: "6px 8px", borderRadius: 4, cursor: "pointer", fontSize: 13 }}
               >
                 {c.name}
               </button>
@@ -58,14 +58,14 @@ export function LogCallModal({ entryId, onClose, onLogged }: { entryId: string; 
           </div>
         )}
 
-        <label style={{ fontSize: 12, color: "#94a3b8", display: "block", marginTop: 12 }}>
+        <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginTop: 12 }}>
           Source URL (video/post, optional)
           <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://…" style={FIELD} />
         </label>
 
-        {error && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 12 }}>{error}</p>}
+        {error && <p style={{ color: "var(--neg)", fontSize: 12, marginTop: 12 }}>{error}</p>}
 
-        <button onClick={submit} disabled={log.isPending} style={{ width: "100%", marginTop: 18, background: "#fbbf24", color: "#0a0f1c", border: "none", borderRadius: 6, padding: "10px", fontWeight: 700, cursor: "pointer" }}>
+        <button onClick={submit} disabled={log.isPending} style={{ width: "100%", marginTop: 18, background: "var(--accent)", color: "var(--bg-panel-2)", border: "none", borderRadius: 6, padding: "10px", fontWeight: 700, cursor: "pointer" }}>
           {log.isPending ? "Logging…" : "Log bullish call"}
         </button>
       </div>
