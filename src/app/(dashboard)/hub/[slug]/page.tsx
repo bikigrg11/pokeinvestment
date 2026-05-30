@@ -21,6 +21,11 @@ export default function EntryProfilePage({ params }: { params: Promise<{ slug: s
 
   const { data: entry, isLoading, isError, refetch } = trpc.creators.byId.useQuery({ slug });
 
+  const { data: videos } = trpc.creators.recentVideos.useQuery(
+    { channelId: entry?.youtubeChannelId ?? "" },
+    { enabled: !!entry?.youtubeChannelId }
+  );
+
   const heatSeries = useMemo(
     () =>
       (entry?.metrics ?? [])
@@ -87,6 +92,42 @@ export default function EntryProfilePage({ params }: { params: Promise<{ slug: s
                 style={{ display: "flex", alignItems: "center", gap: 6, background: "#0a0f1c", border: "1px solid #1e293b", borderRadius: 6, padding: "6px 12px", color: "#cbd5e1", fontSize: 13, textDecoration: "none" }}
               >
                 {l.platform} <ExternalLink size={12} />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent videos (YouTube) */}
+      {entry.youtubeChannelId && videos && videos.length > 0 && (
+        <div style={{ ...PANEL, marginBottom: 16 }}>
+          <div style={LABEL}>Recent videos</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginTop: 12 }}>
+            {videos.map((v) => (
+              <a
+                key={v.videoId}
+                href={`https://www.youtube.com/watch?v=${v.videoId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: "none" }}
+              >
+                {v.thumbnail && (
+                  <Image
+                    src={v.thumbnail}
+                    alt={v.title}
+                    width={320}
+                    height={180}
+                    style={{ width: "100%", height: "auto", borderRadius: 6, border: "1px solid #1e293b" }}
+                  />
+                )}
+                <div
+                  style={{
+                    fontSize: 12, color: "#cbd5e1", marginTop: 6, lineHeight: 1.35,
+                    display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                  }}
+                >
+                  {v.title}
+                </div>
               </a>
             ))}
           </div>
