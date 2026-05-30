@@ -4,11 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { trpc } from "@/lib/trpc/client";
 
 export function Header() {
   const { theme, toggle } = useTheme();
   const router = useRouter();
   const [headerSearch, setHeaderSearch] = useState("");
+
+  // Live Pokémon 250 index value + daily change from the latest snapshots.
+  const { data: idxHistory } = trpc.analytics.indexHistory.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const rows = (idxHistory ?? []) as Array<{ value: number }>;
+  const latest = rows[rows.length - 1];
+  const prev = rows[rows.length - 2];
+  const idxValue = latest ? latest.value / 100 : null;
+  const idxChange = latest && prev && prev.value ? ((latest.value - prev.value) / prev.value) * 100 : null;
 
   return (
     <header
@@ -72,9 +81,13 @@ export function Header() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 8 }}>
           <span style={{ fontSize: 11, color: "var(--text-3)", fontWeight: 600 }}>Pokémon 250</span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>
-            2,847
+            {idxValue != null ? idxValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
           </span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--pos)" }}>+1.2%</span>
+          {idxChange != null && (
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: idxChange >= 0 ? "var(--pos)" : "var(--neg)" }}>
+              {idxChange >= 0 ? "+" : ""}{idxChange.toFixed(1)}%
+            </span>
+          )}
         </div>
 
         {/* Theme toggle */}
