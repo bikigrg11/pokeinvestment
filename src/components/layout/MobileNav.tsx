@@ -10,6 +10,7 @@ import {
   Award,
   Filter,
   Users,
+  Trophy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,7 +25,10 @@ const NAV_SECTIONS: NavItem[][] = [
     { href: "/grading", label: "Grading", icon: Award },
     { href: "/analytics", label: "Screener", icon: Filter },
   ],
-  [{ href: "/hub", label: "Hub", icon: Users }],
+  [
+    { href: "/hub", label: "Hub", icon: Users },
+    { href: "/rankings", label: "Ranks", icon: Trophy },
+  ],
 ];
 
 export function MobileNav() {

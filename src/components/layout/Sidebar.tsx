@@ -13,6 +13,7 @@ import {
   Layers,
   Package,
   Users,
+  Trophy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,7 +34,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: "Community",
-    items: [{ href: "/hub", label: "Creator Hub", icon: Users }],
+    items: [
+      { href: "/hub", label: "Creator Hub", icon: Users },
+      { href: "/rankings", label: "Rankings", icon: Trophy },
+    ],
   },
 ];
 
