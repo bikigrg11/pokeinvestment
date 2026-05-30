@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
@@ -11,16 +12,29 @@ import {
   Filter,
   Layers,
   Package,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: Home },
-  { href: "/market", label: "Market", icon: BarChart3 },
-  { href: "/cards", label: "Cards DB", icon: LayoutGrid },
-  { href: "/grading", label: "Grading", icon: Award },
-  { href: "/analytics", label: "Screener", icon: Filter },
-  { href: "/sets", label: "Sets", icon: Layers },
-  { href: "/sealed", label: "Sealed", icon: Package },
+type NavItem = { href: string; label: string; icon: LucideIcon };
+type NavSection = { label?: string; items: NavItem[] };
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    items: [
+      { href: "/", label: "Dashboard", icon: Home },
+      { href: "/market", label: "Market", icon: BarChart3 },
+      { href: "/cards", label: "Cards DB", icon: LayoutGrid },
+      { href: "/grading", label: "Grading", icon: Award },
+      { href: "/analytics", label: "Screener", icon: Filter },
+      { href: "/sets", label: "Sets", icon: Layers },
+      { href: "/sealed", label: "Sealed", icon: Package },
+    ],
+  },
+  {
+    label: "Community",
+    items: [{ href: "/hub", label: "Creator Hub", icon: Users }],
+  },
 ];
 
 export function Sidebar() {
@@ -93,33 +107,53 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const isActive =
-            href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
-          return (
-            <Link
-              key={href}
-              href={href}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "9px 12px",
-                borderRadius: "var(--radius)",
-                borderLeft: isActive ? "3px solid var(--accent)" : "3px solid transparent",
-                background: isActive ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "transparent",
-                color: isActive ? "var(--accent)" : "var(--text-3)",
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: "none",
-                transition: "all 0.15s",
-              }}
-            >
-              <Icon size={16} />
-              {label}
-            </Link>
-          );
-        })}
+        {NAV_SECTIONS.map((section, si) => (
+          <Fragment key={section.label ?? si}>
+            {section.label && (
+              <div
+                style={{
+                  fontSize: 9,
+                  color: "var(--text-3)",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "1.2px",
+                  margin: "16px 12px 6px",
+                  paddingTop: 14,
+                  borderTop: "1px solid var(--border)",
+                }}
+              >
+                {section.label}
+              </div>
+            )}
+            {section.items.map(({ href, label, icon: Icon }) => {
+              const isActive =
+                href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "9px 12px",
+                    borderRadius: "var(--radius)",
+                    borderLeft: isActive ? "3px solid var(--accent)" : "3px solid transparent",
+                    background: isActive ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "transparent",
+                    color: isActive ? "var(--accent)" : "var(--text-3)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <Icon size={16} />
+                  {label}
+                </Link>
+              );
+            })}
+          </Fragment>
+        ))}
       </nav>
 
       {/* Market Status Footer */}
