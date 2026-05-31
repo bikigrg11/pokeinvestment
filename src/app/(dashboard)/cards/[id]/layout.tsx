@@ -27,6 +27,42 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 }
 
-export default function CardLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function CardLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  let card: { name: string; imageLarge: string | null; prices: { marketPrice: number | null }[] } | null = null;
+  try {
+    card = await db.card.findUnique({
+      where: { id },
+      select: { name: true, imageLarge: true, prices: { orderBy: { date: "desc" }, take: 1, select: { marketPrice: true } } },
+    });
+  } catch {}
+
+  const price = card?.prices?.[0]?.marketPrice ?? null;
+  const jsonLd = card
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: card.name,
+        category: "Pokémon Trading Card",
+        ...(card.imageLarge ? { image: card.imageLarge } : {}),
+        ...(price != null
+          ? { offers: { "@type": "Offer", priceCurrency: "USD", price: (price / 100).toFixed(2), availability: "https://schema.org/InStock", url: `https://pokeinvestment.com/cards/${id}` } }
+          : {}),
+      }
+    : null;
+
+  return (
+    <>
+      {jsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      )}
+      {children}
+    </>
+  );
 }

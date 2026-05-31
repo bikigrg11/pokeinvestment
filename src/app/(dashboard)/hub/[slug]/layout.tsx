@@ -32,6 +32,39 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default function EntryLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function EntryLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  let entry: { name: string; category: string; avatarUrl: string | null; links: { url: string }[] } | null = null;
+  try {
+    entry = await db.entry.findUnique({
+      where: { slug },
+      select: { name: true, category: true, avatarUrl: true, links: { select: { url: true } } },
+    });
+  } catch {}
+
+  const jsonLd = entry
+    ? {
+        "@context": "https://schema.org",
+        "@type": entry.category === "YOUTUBER" || entry.category === "SOCIAL_CREATOR" ? "Person" : "Organization",
+        name: entry.name,
+        url: `https://pokeinvestment.com/hub/${slug}`,
+        ...(entry.avatarUrl ? { image: entry.avatarUrl } : {}),
+        ...(entry.links.length ? { sameAs: entry.links.map((l) => l.url) } : {}),
+      }
+    : null;
+
+  return (
+    <>
+      {jsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      )}
+      {children}
+    </>
+  );
 }
