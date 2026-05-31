@@ -18,5 +18,10 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icon", sizes: "512x512", type: "image/png", purpose: "maskable" },
       { src: "/apple-icon", sizes: "180x180", type: "image/png" },
     ],
+    shortcuts: [
+      { name: "Market", url: "/market", description: "Pokémon 250 index & top cards" },
+      { name: "Rankings", url: "/rankings", description: "Creator leaderboard" },
+      { name: "Trending Videos", url: "/hub/videos", description: "Hottest recent uploads" },
+    ],
   };
 }
