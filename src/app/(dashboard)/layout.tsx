@@ -11,11 +11,13 @@ export default function DashboardLayout({
 }) {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-page)" }}>
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <Sidebar />
       <div style={{ flex: 1, minWidth: 0 }}>
         <MobileHeader />
         <Header />
         <main
+          id="main-content"
           className="main-content"
           style={{
             maxWidth: 1400,

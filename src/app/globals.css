@@ -331,6 +331,23 @@ body {
   display: block;
 }
 
+/* Skip-to-content link — visible only when focused (keyboard a11y) */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 0 0 8px 0;
+  font-weight: 700;
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 0;
+}
+
 /* Footer clears the fixed mobile bottom nav so its content isn't hidden */
 @media (max-width: 768px) {
   .app-footer {
