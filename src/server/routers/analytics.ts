@@ -105,7 +105,7 @@ export const analyticsRouter = createTRPCRouter({
 
     // ─── Sentiment: % of cards whose price went up vs prior sync ───
     // Compares latest date vs the next most recent distinct date (avoids synthetic data gaps)
-    type SentimentRow = { up: bigint; total: bigint };
+    type SentimentRow = { up: bigint; down: bigint };
     const sentimentRows = await ctx.db.$queryRaw<SentimentRow[]>`
       WITH dates AS (
         SELECT DISTINCT date FROM "CardPrice" WHERE "marketPrice" IS NOT NULL ORDER BY date DESC LIMIT 2
@@ -122,14 +122,17 @@ export const analyticsRouter = createTRPCRouter({
       )
       SELECT
         COUNT(*) FILTER (WHERE c."marketPrice" > p."marketPrice") AS up,
-        COUNT(*) AS total
+        COUNT(*) FILTER (WHERE c."marketPrice" < p."marketPrice") AS down
       FROM current c
       JOIN prior p ON p."cardId" = c."cardId"
     `;
+    // Sentiment = gainers vs decliners among cards that actually moved (unchanged
+    // cards are ignored, so a flat market reads Neutral instead of Bearish).
     const sentUp = Number(sentimentRows[0]?.up ?? 0);
-    const sentTotal = Number(sentimentRows[0]?.total ?? 1);
-    const sentimentPct = Math.round((sentUp / sentTotal) * 100);
-    const sentimentLabel = sentimentPct >= 60 ? "Bullish" : sentimentPct >= 40 ? "Neutral" : "Bearish";
+    const sentDown = Number(sentimentRows[0]?.down ?? 0);
+    const movers = sentUp + sentDown;
+    const sentimentPct = movers > 0 ? Math.round((sentUp / movers) * 100) : 50;
+    const sentimentLabel = sentimentPct >= 55 ? "Bullish" : sentimentPct >= 45 ? "Neutral" : "Bearish";
 
     // ─── Last updated: most recent price date ───
     type DateRow = { latest: Date };
@@ -205,10 +208,10 @@ export const analyticsRouter = createTRPCRouter({
     const validPulse = pulseRows.filter((r) => {
       const pct = Math.abs(Number(r.pctChange));
       const absDelta = Math.abs(r.currentPrice - r.prevPrice);
-      return pct <= 50 && absDelta >= 500; // max 50% swing, min $5 change
+      return pct <= 50 && absDelta >= 200; // max 50% swing (filter fakes), min $2 change
     });
-    const gainers = validPulse.filter((r) => Number(r.pctChange) > 3).slice(0, 3);
-    const losers = validPulse.filter((r) => Number(r.pctChange) < -3).slice(0, 2);
+    const gainers = validPulse.filter((r) => Number(r.pctChange) > 1).slice(0, 3);
+    const losers = validPulse.filter((r) => Number(r.pctChange) < -1).slice(0, 2);
 
     for (const g of gainers) {
       marketPulse.push({
