@@ -11,11 +11,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   let entries: { slug: string; updatedAt: Date }[] = [];
+  let cardIds: { cardId: string }[] = [];
   try {
     entries = await db.entry.findMany({
       where: { status: "live" },
       select: { slug: true, updatedAt: true },
     });
+    // Top cards by market price — each is its own indexable landing page.
+    cardIds = await db.$queryRaw<{ cardId: string }[]>`
+      SELECT "cardId" FROM "LatestCardPrice"
+      WHERE "marketPrice" IS NOT NULL
+      ORDER BY "marketPrice" DESC
+      LIMIT 1000`;
   } catch {
     // DB unavailable at build/runtime — still return the static map.
   }
@@ -31,6 +38,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: e.updatedAt,
       changeFrequency: "weekly" as const,
       priority: 0.6,
+    })),
+    ...cardIds.map((c) => ({
+      url: `${BASE}/cards/${c.cardId}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.5,
     })),
   ];
 }
