@@ -474,7 +474,7 @@ export default function DashboardPage() {
           </div>
         </Panel>
 
-        <Panel title="Market Pulse" padding={0}>
+        <Panel title="Market Pulse" padding={0} titleAlign="center">
           <div style={{ padding: "4px 0" }}>
             {(data?.marketPulse ?? []).length === 0 ? (
               <div style={{ padding: "20px 18px", color: "var(--text-3)", fontSize: 13 }}>
