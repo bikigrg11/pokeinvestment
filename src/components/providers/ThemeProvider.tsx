@@ -23,6 +23,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (stored === "pro" || stored === "day") {
       setTheme(stored);
       document.documentElement.setAttribute("data-theme", stored === "pro" ? "pro" : "");
+    } else if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
+      // No saved preference → follow the OS dark/light setting on first visit.
+      setTheme("pro");
+      document.documentElement.setAttribute("data-theme", "pro");
     }
   }, []);
 

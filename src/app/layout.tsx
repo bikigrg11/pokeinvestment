@@ -37,6 +37,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('pokeinvest-theme');if(t==='pro'||(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.setAttribute('data-theme','pro');}}catch(e){}})();`,
+          }}
+        />
         <ThemeProvider>
           <TRPCProvider>{children}</TRPCProvider>
         </ThemeProvider>
