@@ -331,6 +331,13 @@ body {
   display: block;
 }
 
+/* Footer clears the fixed mobile bottom nav so its content isn't hidden */
+@media (max-width: 768px) {
+  .app-footer {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
 /* Dashboard split — market/grading main + community right rail */
 .dash-split {
   display: grid;

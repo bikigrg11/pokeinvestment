@@ -3,6 +3,7 @@ import Link from "next/link";
 export function Footer() {
   return (
     <footer
+      className="app-footer"
       style={{
         borderTop: "1px solid var(--border)",
         marginTop: 40,
