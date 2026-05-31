@@ -82,6 +82,9 @@ PokeInvest is a **Next.js web app** deployed on **Vercel** at **https://pokeinve
 - Content: Creator Hub seeded with 70 verified creators/resources; Trending Videos (live YouTube); Rankings; daily Heat.
 - Legal: `/privacy` + `/terms` pages (review & personalize the text).
 - Cleanup: removed dead/orphaned pages and files; focused nav.
+- Security: HTTP headers (HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy), `poweredByHeader` off.
+- SEO depth: per-section metadata (market/grading/rankings/browse/videos), per-card metadata + top 1000 cards in sitemap, JSON-LD structured data (Person/Organization for creators, Product for cards), branded OG images for every key page + per-card OG.
+- UX: respects OS light/dark on first visit (no-flash), native Web Share on profiles, keyboard skip-to-content link, helpful 404, AVIF/WebP images, PWA shortcuts, footer.
 
 ## Deferred / blocked during this session
 
