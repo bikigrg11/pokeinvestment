@@ -3,7 +3,6 @@ import { cardsRouter } from "./cards";
 import { setsRouter } from "./sets";
 import { analyticsRouter } from "./analytics";
 import { pricesRouter } from "./prices";
-import { sealedRouter } from "./sealed";
 import { creatorsRouter } from "./creators";
 
 export const appRouter = createTRPCRouter({
@@ -11,7 +10,6 @@ export const appRouter = createTRPCRouter({
   sets: setsRouter,
   prices: pricesRouter,
   analytics: analyticsRouter,
-  sealed: sealedRouter,
   creators: creatorsRouter,
 });
 
