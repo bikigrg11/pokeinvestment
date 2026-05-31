@@ -7,7 +7,7 @@ const BASE = "https://pokeinvestment.com";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPaths = [
     "", "/hub", "/hub/browse", "/hub/videos", "/rankings",
-    "/market", "/cards", "/grading",
+    "/market", "/cards", "/grading", "/privacy", "/terms",
   ];
 
   let entries: { slug: string; updatedAt: Date }[] = [];
