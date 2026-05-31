@@ -373,7 +373,7 @@ export default function DashboardPage() {
         <Stat
           label="Market Sentiment"
           value={data?.sentiment?.label ?? "—"}
-          sub={`${data?.sentiment?.pct ?? 0}% of tracked up 2w`}
+          sub={`${data?.sentiment?.pct ?? 0}% of movers up since last sync`}
           color={data?.sentiment?.label === "Bullish" ? "var(--pos)" : data?.sentiment?.label === "Bearish" ? "var(--neg)" : "var(--text-2)"}
         />
         <Stat
