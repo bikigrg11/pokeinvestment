@@ -26,6 +26,18 @@ export default function NotFound() {
       >
         ← Back to Dashboard
       </Link>
+      <div style={{ display: "flex", gap: 18, marginTop: 10, flexWrap: "wrap", justifyContent: "center" }}>
+        {[
+          { href: "/market", label: "Market" },
+          { href: "/grading", label: "Grading" },
+          { href: "/hub/browse", label: "Creators" },
+          { href: "/rankings", label: "Rankings" },
+        ].map((l) => (
+          <Link key={l.href} href={l.href} style={{ color: "var(--text-3)", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+            {l.label}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
