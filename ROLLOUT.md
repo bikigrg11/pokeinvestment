@@ -83,4 +83,9 @@ PokeInvest is a **Next.js web app** deployed on **Vercel** at **https://pokeinve
 - Legal: `/privacy` + `/terms` pages (review & personalize the text).
 - Cleanup: removed dead/orphaned pages and files; focused nav.
 
+## Deferred / blocked during this session
+
+- **Profile view-count feature** (a "Most Viewed" ranking) was built but **not shipped** because Neon was unreachable from the build machine (free-tier cold-start dropped direct connections) and the feature needs an additive `Entry.viewCount` column applied to prod first. To finish later: re-add `viewCount Int @default(0)` to `Entry`, run `npx prisma migrate dev --name entry_view_count`, then `prisma migrate deploy` against prod (pull the URL with `vercel env pull`), then wire the `creators.trackView` mutation + a Rankings tab. **[YOU/later]**
+- **Seeding more creators** also needs prod DB reachability — re-run `prisma/seed-creators.ts` when Neon responds.
+
 _Keep this file updated as you complete items._
